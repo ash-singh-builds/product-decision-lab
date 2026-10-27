@@ -2,9 +2,13 @@
 
 A working, AI-assisted prototype for product managers to compare feature priorities, inspect evidence, challenge assumptions and explore capacity trade-offs.
 
+## Live demo
+
+Open [Product Decision Lab](https://aish081.github.io/product-decision-lab/). No local setup required.
+
 ## Run locally
 
-Run `npm run dev` and open http://localhost:4173. No dependencies, API keys or build step required. Run `npm test` for decision-engine checks.
+Run `npm run dev` and open http://localhost:4173. Keep that terminal running while you use the local preview. If it is stopped, the localhost URL will not open; use the live demo above instead. No dependencies, API keys or build step required. Run `npm test` for decision-engine checks.
 
 ## Try the walkthrough
 
