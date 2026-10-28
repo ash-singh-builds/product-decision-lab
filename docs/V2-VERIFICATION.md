@@ -1,3 +1,5 @@
+> Historical implementation record. For the integrated experience, use the root README, docs/DEMO.md and docs/VERIFICATION.md.
+
 # V2 verification record
 
 Date: 27 October 2026. Scope: static Demo Mode only.

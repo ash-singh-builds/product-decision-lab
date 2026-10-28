@@ -1,3 +1,5 @@
+> Historical implementation record. For the integrated experience, use the root README, docs/DEMO.md and docs/VERIFICATION.md.
+
 # Deterministic evaluation suite
 
 The Demo-only scope supersedes the earlier live-model requirements. There is no model, invalid model-output handling, provider error fallback or live evaluation to run. Do not describe these tests as LLM quality measurements.

@@ -1,3 +1,5 @@
+> Historical implementation record. For the integrated experience, use the root README, docs/DEMO.md and docs/VERIFICATION.md.
+
 # A credible 90-second walkthrough
 
 Use real screen recording. Do not claim participants or measured outcomes.
