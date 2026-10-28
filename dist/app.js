@@ -91,17 +91,24 @@ function field(
 }
 const check = (label, path, value) =>
   `<label class="check"><input type="checkbox" data-path="${path}" ${value ? "checked" : ""}>${label}</label>`;
+let guided = false,
+  demoStep = 0,
+  personalState = null;
+const DEMO_KEY = "pdl-guided-demo";
 function save() {
   try {
-    localStorage.setItem(KEY, JSON.stringify(state));
-    message = "Saved in this browser.";
+    localStorage.setItem(guided ? DEMO_KEY : KEY, JSON.stringify(state));
+    message = guided
+      ? "Illustrative demo saved separately. Your own assessment is preserved."
+      : "Saved in this browser.";
   } catch {
     message = "Storage unavailable. Keep this tab open or export a report.";
   }
 }
 function go(name) {
   page = name;
-  history.replaceState(null, "", "#" + pageSlug(name));
+  if (guided) demoRoute();
+  else history.replaceState(null, "", "#" + pageSlug(name));
   render();
   $("#content").focus();
 }
@@ -109,7 +116,74 @@ function provenance() {
   return `<div class="notice">${state.sample ? "<strong>Illustrative Northstar Cloud scenario.</strong> Customer feedback, competitor profiles and market assumptions are fictional." : "<strong>User-provided evidence.</strong> Competitive information is unverified unless a source is marked as confirmed by you."} <a href="#methodology">How to interpret this analysis →</a></div>`;
 }
 function overview() {
-  return `<div class="hero"><span class="eyebrow">PRODUCT DECISION LAB</span><h1>One idea or three.<br><em>Is it worth building?</em></h1><p class="proposition">From product opportunities to confident investment decisions.</p><p class="lead">Evaluate opportunities, understand competitive positioning and navigate product investment decisions with clarity.</p><div class="actions"><button class="primary" data-start="single">Evaluate an Opportunity</button><button data-start="compare">Compare Opportunities</button></div><button class="text-action" data-sample>Explore an Example →</button></div><div class="workflow"><span>Customer Context</span><b>→</b><span>Market Intelligence</span><b>→</b><span>Opportunity Assessment</span><b>→</b><span>Investment Decision</span></div><div class="grid"><div class="card"><span class="eyebrow">OPPORTUNITY INTELLIGENCE</span><h2 style="margin-top:16px">Understand why an investment matters.</h2><p>Connect customer problems, evidence and competitive expectations. Challenge the assumptions before committing.</p><button data-go="Opportunities">Define an opportunity →</button></div><div class="card"><span class="eyebrow">INVESTMENT & PRIORITISATION</span><h2 style="margin-top:16px">Make the trade-offs visible.</h2><p>Compare attractiveness, delivery efficiency and feasible portfolios. Keep the final decision in your hands.</p><button data-go="Compare & Prioritise">Explore investment choices →</button></div></div><div class="card sample-banner"><div><h2>Northstar Cloud · An enterprise investment decision</h2><p>SSO, insights or audit logging? Explore a complete illustrative scenario.</p></div><button data-sample>Explore an Example ↗</button></div>${provenance()}<div class="card"><div class="section-head"><div><h2>Your decision workspace</h2><p>${esc(state.context.name || "Start with your product context")} · ${state.ideas.length} opportunity(s) · ${state.competitors.length} competitor profiles</p></div><button data-go="Product Context">Edit context</button></div><p class="muted">Better product decisions start with better questions.</p></div>`;
+  return `<div class="hero"><span class="eyebrow">PRODUCT DECISION LAB</span><h1>One idea or three.<br><em>Is it worth building?</em></h1><p class="proposition">From product opportunities to confident investment decisions.</p><p class="lead">Evaluate opportunities, understand competitive positioning and navigate product investment decisions with clarity.</p><div class="actions"><button class="primary" data-guided-start>Explore Guided Demo</button><button data-own>Start Your Own Assessment</button></div><p class="muted">Experience a preconfigured product investment decision in about 90 seconds, or enter your own product information.</p><div class="actions"><button data-start="single">Evaluate an Opportunity</button><button data-start="compare">Compare Opportunities</button></div><button class="text-action" data-sample>Explore an Example →</button></div><div class="workflow"><span>Customer Context</span><b>→</b><span>Market Intelligence</span><b>→</b><span>Opportunity Assessment</span><b>→</b><span>Investment Decision</span></div><div class="grid"><div class="card"><span class="eyebrow">OPPORTUNITY INTELLIGENCE</span><h2 style="margin-top:16px">Understand why an investment matters.</h2><p>Connect customer problems, evidence and competitive expectations. Challenge the assumptions before committing.</p><button data-go="Opportunities">Define an opportunity →</button></div><div class="card"><span class="eyebrow">INVESTMENT & PRIORITISATION</span><h2 style="margin-top:16px">Make the trade-offs visible.</h2><p>Compare attractiveness, delivery efficiency and feasible portfolios. Keep the final decision in your hands.</p><button data-go="Compare & Prioritise">Explore investment choices →</button></div></div><div class="card sample-banner"><div><h2>Northstar Cloud · An enterprise investment decision</h2><p>SSO, insights or audit logging? Explore a complete illustrative scenario.</p></div><button data-sample>Explore an Example ↗</button></div>${provenance()}<div class="card"><div class="section-head"><div><h2>Your decision workspace</h2><p>${esc(state.context.name || "Start with your product context")} · ${state.ideas.length} opportunity(s) · ${state.competitors.length} competitor profiles</p></div><button data-go="Product Context">Edit context</button></div><p class="muted">Better product decisions start with better questions.</p></div>`;
+}
+function demoRoute() {
+  const u = new URL(location.href);
+  u.searchParams.set("demo", "guided");
+  u.searchParams.set("step", demoStep);
+  u.hash = pageSlug(page);
+  history.replaceState(null, "", u);
+}
+function demoStart(restart = false) {
+  if (!guided) personalState = structuredClone(state);
+  guided = true;
+  state = GuidedDemo.sample(E);
+  demoStep = 0;
+  additionalContextOpen = false;
+  contextDrafts.segment = "";
+  contextDrafts.priorities = "";
+  message = "Illustrative scenario. Your own assessment is preserved.";
+  save();
+  demoMove(0);
+}
+function demoMove(step) {
+  demoStep = Math.max(0, Math.min(4, step));
+  page = GuidedDemo.stages[demoStep].page;
+  demoRoute();
+  render();
+  $("#content").focus();
+}
+function demoExit() {
+  guided = false;
+  state = personalState || E.blank();
+  personalState = null;
+  const u = new URL(location.href);
+  u.searchParams.delete("demo");
+  u.searchParams.delete("step");
+  u.hash = "overview";
+  history.replaceState(null, "", u);
+  page = "Overview";
+  message = "Your own assessment is restored.";
+  additionalContextOpen = false;
+  contextDrafts.segment = "";
+  contextDrafts.priorities = "";
+  render();
+  $("#content").focus();
+}
+function demoFrame() {
+  const stage = GuidedDemo.stages[demoStep];
+  return `<section class="card demo-guide" aria-label="Guided demo"><div class="section-head"><span class="eyebrow">GUIDED DEMO · ILLUSTRATIVE DATA · ABOUT 90 SECONDS</span><div class="actions"><button data-demo-restart>Restart Demo</button><button data-demo-link>Copy Demo Link</button><button data-demo-exit>Exit Demo</button></div></div><ol class="demo-progress" aria-label="Demo progress">${GuidedDemo.stages.map((x, n) => `<li><button data-demo-step="${n}" data-step-number="${n + 1}" ${n === demoStep ? 'aria-current="step"' : ""}>${n + 1}. ${x.title}</button></li>`).join("")}</ol><h1>${stage.title}</h1><p class="lead">${stage.text}</p><p><strong>${esc(state.context.name)}</strong> · ${esc(state.context.segment)} · ${state.capacity} engineering points</p><p class="muted">${esc(state.context.objectives)}</p><p class="muted">Your own assessment is preserved. You can also use the workspace navigation to explore freely.</p>${page !== stage.page ? "<button data-demo-resume>Resume this stage</button>" : ""}${demoNavigation()}</section>`;
+}
+function demoNavigation() {
+  return `<div class="card actions demo-navigation"><span>Step ${demoStep + 1} of 5</span>${demoStep ? "<button data-demo-prev>← Previous</button>" : ""}${demoStep < 4 ? `<button class="primary" data-demo-next>Next: ${GuidedDemo.stages[demoStep + 1].title} →</button>` : "<button data-demo-exit>Exit Demo</button>"}</div>`;
+}
+function demoTradeoffs() {
+  return `<section class="card demo-controls"><h2>What happens if capacity drops from 10 to 6 points?</h2><p>Explore a tighter delivery limit, then change what the business values most.</p><div class="actions"><button data-demo-capacity="6" aria-pressed="${state.capacity === 6}">Reduce capacity to 6 points</button><button data-demo-capacity="10" aria-pressed="${state.capacity === 10}">Restore 10 points</button></div><h3>Strategic emphasis</h3><div class="actions"><button data-demo-emphasis="enterprise" aria-pressed="${state.demoEmphasis === "Enterprise Readiness"}">Enterprise Readiness</button><button data-demo-emphasis="differentiation" aria-pressed="${state.demoEmphasis === "Differentiation"}">Differentiation</button></div><p class="muted">Illustrative scenario assumptions: strategic fit carries 50% of weight. Enterprise Readiness sets SSO / Insights / Audit fit to 5 / 2 / 5 and planning values to 9 / 8 / 7; Differentiation uses 2 / 5 / 2 and 6 / 12 / 5. Customer evidence and effort do not change. These are editable judgments, not market facts.</p></section>${demoConclusion(false)}`;
+}
+function demoConclusion(full = true) {
+  const c = GuidedDemo.conclusion(state, E);
+  return `<section class="card demo-conclusion"><span class="eyebrow">CURRENT INVESTMENT CONCLUSION · ${esc(state.demoEmphasis || "Custom emphasis")}</span><h2>${esc(c.action)}</h2><dl>${[
+    ["Supporting evidence", c.evidence],
+    ["Main trade-off", c.tradeoff],
+    ["Critical assumption", c.assumption],
+    ["What would change the recommendation", c.change],
+    ["Recommended next validation activity", c.next],
+  ]
+    .map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`)
+    .join(
+      "",
+    )}</dl>${full ? '<button class="primary" data-go="Decision Assessment">Open full Opportunity Assessment →</button>' : ""}</section>`;
 }
 const contextLabels = {
   market: "Industry / Market",
@@ -340,7 +414,7 @@ function render() {
     )
     .join("");
   $("#status").textContent = message;
-  $("#view").innerHTML = {
+  const body = {
     Overview: overview,
     "Product Context": context,
     Opportunities: ideas,
@@ -350,7 +424,12 @@ function render() {
     "Scenario Planning": scenario,
     Methodology: methodology,
     "Decision Assessment": reportView,
+    "Guided Conclusion": () => demoConclusion(),
   }[page]();
+  $("#view").innerHTML =
+    (guided ? demoFrame() : "") +
+    (guided && page === "Scenario Planning" ? demoTradeoffs() : "") +
+    body;
   bind();
 }
 function setPath(path, value) {
@@ -360,6 +439,74 @@ function setPath(path, value) {
   target[parts.at(-1)] = value;
 }
 function bind() {
+  document
+    .querySelectorAll("[data-guided-start]")
+    .forEach((b) => (b.onclick = () => demoStart()));
+  document.querySelectorAll("[data-own]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        if (guided) demoExit();
+        go("Product Context");
+      }),
+  );
+  document
+    .querySelectorAll("[data-demo-exit]")
+    .forEach((b) => (b.onclick = demoExit));
+  document
+    .querySelectorAll("[data-demo-restart]")
+    .forEach((b) => (b.onclick = () => demoStart(true)));
+  document
+    .querySelectorAll("[data-demo-step]")
+    .forEach((b) => (b.onclick = () => demoMove(Number(b.dataset.demoStep))));
+  document
+    .querySelectorAll("[data-demo-prev]")
+    .forEach((b) => (b.onclick = () => demoMove(demoStep - 1)));
+  document
+    .querySelectorAll("[data-demo-next]")
+    .forEach((b) => (b.onclick = () => demoMove(demoStep + 1)));
+  document
+    .querySelectorAll("[data-demo-resume]")
+    .forEach((b) => (b.onclick = () => demoMove(demoStep)));
+  document.querySelectorAll("[data-demo-capacity]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        state.capacity = Number(b.dataset.demoCapacity);
+        save();
+        render();
+        document
+          .querySelector(`[data-demo-capacity="${state.capacity}"]`)
+          ?.focus();
+      }),
+  );
+  document.querySelectorAll("[data-demo-emphasis]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        GuidedDemo.emphasis(
+          state,
+          b.dataset.demoEmphasis === "differentiation",
+        );
+        save();
+        render();
+        document
+          .querySelector(`[data-demo-emphasis="${b.dataset.demoEmphasis}"]`)
+          ?.focus();
+      }),
+  );
+  document.querySelectorAll("[data-demo-link]").forEach(
+    (b) =>
+      (b.onclick = async () => {
+        const u = new URL(location.href);
+        u.search = "?demo=guided";
+        u.hash = "";
+        try {
+          await navigator.clipboard.writeText(u.href);
+          $("#status").textContent = "Demo link copied.";
+        } catch {
+          $("#status").textContent = "Copy this demo link: " + u.href;
+        }
+      }),
+  );
+
   const details = $("#additional-context");
   if (details)
     details.ontoggle = () => {
@@ -682,7 +829,11 @@ function loadSample() {
 }
 $("#cancel").onclick = () => $("#confirm").close();
 $("#sample").onclick = loadSample;
-$("#reset").onclick = () =>
+$("#reset").onclick = () => {
+  if (guided) {
+    demoStart(true);
+    return;
+  }
   confirmReplace("Reset to a fresh workspace?", () => {
     state = E.blank();
     additionalContextOpen = false;
@@ -691,7 +842,15 @@ $("#reset").onclick = () =>
     save();
     go("Overview");
   });
-$("#clear").onclick = () =>
+};
+$("#clear").onclick = () => {
+  if (guided) {
+    try {
+      localStorage.removeItem(DEMO_KEY);
+    } catch {}
+    demoExit();
+    return;
+  }
   confirmReplace("Clear all saved workspace data?", () => {
     state = E.blank();
     additionalContextOpen = false;
@@ -706,6 +865,7 @@ $("#clear").onclick = () =>
     }
     go("Overview");
   });
+};
 function pageSlug(name) {
   return name.toLowerCase().replaceAll("&", "and").replaceAll(" ", "-");
 }
@@ -720,4 +880,19 @@ window.addEventListener("hashchange", () => {
   render();
 });
 page = readRoute();
+if (new URLSearchParams(location.search).get("demo") === "guided") {
+  personalState = structuredClone(state);
+  guided = true;
+  state = GuidedDemo.sample(E);
+  try {
+    const raw = localStorage.getItem(DEMO_KEY);
+    if (raw) {
+      const restored = E.restore(JSON.parse(raw));
+      if (restored.sample && !E.validate(restored).length) state = restored;
+    }
+  } catch {}
+  const step = Number(new URLSearchParams(location.search).get("step") || 0);
+  demoStep = Number.isInteger(step) ? Math.max(0, Math.min(4, step)) : 0;
+  page = GuidedDemo.stages[demoStep].page;
+}
 render();
