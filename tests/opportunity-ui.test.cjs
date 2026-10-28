@@ -21,6 +21,7 @@ function app(saved) {
     w.localStorage.setItem("pdl-decision-workspace", saved);
   for (const f of [
     "data.js",
+    "context-fields.js",
     "competition.js",
     "challenger.js",
     "report.js",
@@ -39,6 +40,13 @@ function click(w, text) {
 }
 function edit(w, path, value) {
   const el = w.document.querySelector(`[data-path="${path}"]`);
+  if (!el && path === "context.segment") {
+    const input = w.document.querySelector('[data-context-custom="segment"]');
+    input.value = value;
+    input.dispatchEvent(new w.Event("input"));
+    click(w, "Add segment");
+    return;
+  }
   assert.ok(el, path);
   if (el.type === "checkbox") el.checked = value;
   else el.value = value;
@@ -290,5 +298,115 @@ test("matrix never labels an illustrative or unverified absence as verified rese
     '[data-path="competitors.1.capabilities.insights"] option[value="no"]',
   );
   assert.match(option.textContent, /unverified/);
+  w.close();
+});
+
+test("context groups and standard/custom dropdowns preserve saved entries", () => {
+  const E = require("../dist/engine.js");
+  const s = E.blank();
+  Object.assign(s.context, {
+    market: "Space robotics",
+    geography: "EMEA + India",
+    businessModel: "Hybrid licence",
+    horizon: "Before renewal",
+  });
+  const w = app(JSON.stringify(s));
+  click(w, "Product Context");
+  assert.equal(w.document.querySelector("#additional-context").open, false);
+  for (const key of ["market", "geography", "businessModel", "horizon"]) {
+    assert.equal(
+      w.document.querySelector(`[data-context-dropdown="${key}"]`).value,
+      "__custom__",
+    );
+    assert.equal(
+      w.document.querySelector(`[data-path="context.${key}"]`).value,
+      s.context[key],
+    );
+  }
+  const dropdown = w.document.querySelector('[data-context-dropdown="market"]');
+  dropdown.value = "Healthcare";
+  dropdown.dispatchEvent(new w.Event("change"));
+  assert.equal(
+    JSON.parse(w.localStorage.getItem("pdl-decision-workspace")).context.market,
+    "Healthcare",
+  );
+  w.close();
+});
+test("multi-select context supports standard options, custom values, removal and reload", () => {
+  let w = app();
+  click(w, "Product Context");
+  for (const value of ["SMB", "Enterprise"]) {
+    const el = w.document.querySelector(
+      `[data-context-multi="segment"][value="${value}"]`,
+    );
+    el.checked = true;
+    el.dispatchEvent(new w.Event("change"));
+  }
+  let input = w.document.querySelector('[data-context-custom="priorities"]');
+  input.value = "Improve onboarding";
+  input.dispatchEvent(new w.Event("input"));
+  click(w, "Add priority");
+  const saved = w.localStorage.getItem("pdl-decision-workspace");
+  w.close();
+  w = app(saved);
+  click(w, "Product Context");
+  assert.equal(
+    w.document.querySelector('[data-context-multi="segment"][value="SMB"]')
+      .checked,
+    true,
+  );
+  assert.match(text(w), /Improve onboarding/);
+  w.document.querySelector('[data-remove-context="priorities"]').click();
+  assert.equal(
+    JSON.parse(w.localStorage.getItem("pdl-decision-workspace")).context
+      .priorities,
+    "",
+  );
+  w.close();
+});
+test("additional context stays open while changing dropdowns and custom text is editable", () => {
+  const w = app();
+  click(w, "Product Context");
+  w.document.querySelector("#additional-context").open = true;
+  const dropdown = w.document.querySelector(
+    '[data-context-dropdown="geography"]',
+  );
+  dropdown.value = "__custom__";
+  dropdown.dispatchEvent(new w.Event("change"));
+  assert.equal(w.document.querySelector("#additional-context").open, true);
+  edit(w, "context.geography", "Nordics");
+  click(w, "Continue to ideas →");
+  click(w, "Decision Assessment");
+  assert.match(w.document.querySelector(".report").value, /Nordics/);
+  w.close();
+});
+test("custom priority draft survives another selection; reset clears selections", () => {
+  const w = app();
+  click(w, "Product Context");
+  const input = w.document.querySelector('[data-context-custom="priorities"]');
+  input.value = "Draft priority";
+  input.dispatchEvent(new w.Event("input"));
+  const checkbox = w.document.querySelector(
+    '[data-context-multi="priorities"]',
+  );
+  checkbox.checked = true;
+  checkbox.dispatchEvent(new w.Event("change"));
+  assert.equal(
+    w.document.querySelector('[data-context-custom="priorities"]').value,
+    "Draft priority",
+  );
+  click(w, "Add priority");
+  click(w, "Reset workspace");
+  click(w, "Continue");
+  click(w, "Product Context");
+  assert.equal(
+    w.document.querySelectorAll("[data-context-multi]:checked").length,
+    0,
+  );
+  assert.equal(
+    w.document.querySelector('[data-context-custom="priorities"]').value,
+    "",
+  );
+  assert.equal(w.document.querySelector("#additional-context").open, false);
   w.close();
 });
