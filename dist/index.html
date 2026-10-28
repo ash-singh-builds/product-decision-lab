@@ -1,1 +1,62 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="A working product decision prototype. Compare evidence, challenge assumptions and explore roadmap trade-offs."><title>Product Decision Lab</title><link rel="stylesheet" href="style.css?v=3"></head><body><aside><a class="brand" href="#"><span class="logo">◈</span> Decision Lab<span class="beta">PROTOTYPE</span></a><small>WORKSPACE</small><nav id="nav"></nav><div class="aside-bottom"><div class="avatar">AS</div><div>Independent build<small>AI-assisted prototyping</small></div></div></aside><main><header><span>Workspace <b>/</b> <strong>Onboarding priorities</strong></span><button id="reset" class="quiet">↺ Reset demo</button></header><div class="page"><div class="eyebrow">PRODUCT DECISION LAB <span>● SCENARIO INPUTS</span></div><div class="title-row"><div><h1>What should we<br><em>build next?</em></h1><p>Compare onboarding improvements. See what fits, what to defer, and which assumptions to validate.</p></div><button class="primary" id="brief-top">Generate decision brief ↗</button></div><div class="workspace"><span class="product-icon">O</span><div><strong>Onboarding</strong><p>From getting started to finding value</p></div><span class="goal">↗ Goal: complete the first useful task</span></div><section id="view"></section><footer>A working experiment in product judgment · Planning assumptions · Not measured outcomes<span>Built to support your thinking.</span></footer></div></main><dialog id="evidence"><div id="evidence-body"></div><button onclick="this.parentElement.close()">Close evidence</button></dialog><div id="toast" role="status"></div><script src="engine.js?v=4"></script><script src="app.js?v=4"></script></body></html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Product Decision Lab</title>
+    <meta
+      name="description"
+      content="From product opportunities to confident investment decisions. Evaluate evidence, competitive positioning and delivery trade-offs."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath fill='%233e58a8' d='M20 2 38 20 20 38 2 20Z'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="style.css?release=complete1" />
+  </head>
+  <body>
+    <a class="skip" href="#content">Skip to workspace</a>
+    <header>
+      <a class="brand" href="#"
+        >◈
+        <span
+          >Product Decision Lab<small>PRODUCT STRATEGY WORKSPACE</small></span
+        ></a
+      ><span class="tag">Decision-support workspace</span>
+    </header>
+    <div class="shell">
+      <aside>
+        <nav id="nav" aria-label="Workspace"></nav>
+        <div class="aside-note">
+          Understand → Evaluate → Challenge → Compare → Prioritise → Decide
+          <p>Customer evidence, strategic judgment and delivery constraints.</p>
+          <a href="#methodology">Methodology & limitations ↗</a>
+        </div>
+      </aside>
+      <main id="content" tabindex="-1">
+        <div id="status" role="status"></div>
+        <div id="view"></div>
+      </main>
+    </div>
+    <footer>
+      <span>Better product decisions start with better questions.</span>
+      <div>
+        <button id="sample">Explore an Example</button
+        ><button id="reset">Reset workspace</button
+        ><button id="clear">Clear workspace data</button>
+      </div>
+    </footer>
+    <dialog id="confirm">
+      <h2 id="confirm-title"></h2>
+      <p>This replaces your current workspace and saved scenarios.</p>
+      <button id="cancel">Cancel</button
+      ><button id="confirm-action" class="primary">Continue</button>
+    </dialog>
+    <script src="data.js?release=complete1"></script>
+    <script src="competition.js?release=complete1"></script>
+    <script src="challenger.js?release=complete1"></script>
+    <script src="report.js?release=complete1"></script>
+    <script src="engine.js?release=complete1"></script>
+    <script src="app.js?release=complete1"></script>
+  </body>
+</html>
