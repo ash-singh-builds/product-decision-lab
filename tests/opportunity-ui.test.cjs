@@ -276,3 +276,19 @@ test("input events update scenario calculations without waiting for blur", () =>
   assert.match(text(w), /2 points over capacity/);
   w.close();
 });
+
+test("matrix never labels an illustrative or unverified absence as verified research", () => {
+  const w = app();
+  sample(w);
+  click(w, "Competitive Intelligence");
+  let option = w.document.querySelector(
+    '[data-path="competitors.1.capabilities.insights"] option[value="no"]',
+  );
+  assert.match(option.textContent, /illustrative assumption/);
+  edit(w, "competitors.1.status", "user");
+  option = w.document.querySelector(
+    '[data-path="competitors.1.capabilities.insights"] option[value="no"]',
+  );
+  assert.match(option.textContent, /unverified/);
+  w.close();
+});
