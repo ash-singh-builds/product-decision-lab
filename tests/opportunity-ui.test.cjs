@@ -34,9 +34,37 @@ function app(saved, url = "https://example.test/v2/", demo) {
   return w;
 }
 function click(w, text) {
-  const b = [...w.document.querySelectorAll("button")].find(
-    (b) => b.textContent.trim() === text,
+  const aliases = {
+    Opportunities: "My Opportunities",
+    "Decision Assessment": "Decision Brief",
+    "Compare & Prioritise": "Idea comparison",
+    "Competitive Intelligence": "Competitive intelligence",
+    "Explore Guided Demo": "Explore Guided Example",
+    "Evaluate an Opportunity": "Evaluate One Idea",
+    "Compare Opportunities": "Compare 2–3 Ideas",
+    "Start Your Own Assessment": "Product Context",
+    "← Previous": "← Back",
+    "Next: Decision Assessment →": "Next: Decision Brief →",
+  };
+  text = aliases[text] || text;
+  let b = [...w.document.querySelectorAll("button")].find(
+    (b) =>
+      b.textContent.trim() === text || b.childNodes[0]?.textContent === text,
   );
+  if (
+    !b &&
+    [
+      "Idea comparison",
+      "Opportunity assessment",
+      "Competitive intelligence",
+      "Decision Challenger",
+    ].includes(text)
+  ) {
+    click(w, "Decision Analysis");
+    b = [...w.document.querySelectorAll("button")].find(
+      (b) => b.textContent.trim() === text,
+    );
+  }
   assert.ok(b, "Missing button " + text);
   b.click();
 }
@@ -55,13 +83,13 @@ function edit(w, path, value) {
   el.dispatchEvent(new w.Event("change", { bubbles: true }));
 }
 function sample(w) {
-  click(w, "Explore an Example →");
+  click(w, "Explore an Example");
   click(w, "Continue");
 }
 const text = (w) => w.document.querySelector("#view").textContent;
 test("one idea journey accepts partial input, edits context and retains unknowns", () => {
   const w = app();
-  click(w, "Evaluate an Opportunity");
+  click(w, "Product Context");
   edit(w, "context.name", "My product");
   edit(w, "context.segment", "Small teams");
   click(w, "Continue to ideas →");
@@ -77,8 +105,8 @@ test("one idea journey accepts partial input, edits context and retains unknowns
 });
 test("comparison supports two and three ideas, duplicate, remove and limits", () => {
   const w = app();
-  click(w, "Compare Opportunities");
-  click(w, "Continue to ideas →");
+  click(w, "Compare 2–3 Ideas");
+  click(w, "My Opportunities");
   assert.equal(w.document.querySelectorAll("[data-remove]").length, 2);
   click(w, "Duplicate");
   assert.equal(w.document.querySelectorAll("[data-remove]").length, 3);
@@ -165,13 +193,13 @@ test("reset and clear require confirmation; V1 state is preserved", () => {
   click(w, "Continue");
   click(w, "Reset workspace");
   click(w, "Continue");
-  assert.match(text(w), /Start with your product context/);
+  assert.match(text(w), /Start first. Refine later/);
   w.close();
 });
 test("malformed storage recovers; hostile markup remains text", () => {
   const w = app("{broken");
   assert.match(w.document.body.textContent, /invalid/i);
-  click(w, "Evaluate an Opportunity");
+  click(w, "Product Context");
   edit(w, "context.name", "<img src=x onerror=alert(1)>");
   click(w, "Continue to ideas →");
   edit(w, "ideas.0.name", "<script>alert(1)</script>");
@@ -518,5 +546,145 @@ test("guided share link is clean and malformed saved demo falls back safely", as
   await w.document.querySelector("[data-demo-link]").onclick();
   assert.equal(copied, "https://example.test/dist/?demo=guided");
   assert.match(w.document.querySelector("#status").textContent, /copied/);
+  w.close();
+});
+
+test("name-first single idea reaches a useful partial result without context or ratings", () => {
+  const w = app();
+  click(w, "Evaluate One Idea");
+  assert.equal(
+    w.document.querySelectorAll("#quick-start [data-path]").length,
+    2,
+  );
+  click(w, "Start Evaluating");
+  assert.match(
+    w.document.querySelector("#quick-error").textContent,
+    /Enter an idea name/,
+  );
+  edit(w, "ideas.0.name", "Smart reminders");
+  click(w, "Start Evaluating");
+  assert.match(text(w), /Opportunity Overview/);
+  assert.match(text(w), /What is known/);
+  assert.match(text(w), /No final score/);
+  assert.equal(w.document.querySelectorAll(".next-question").length, 3);
+  const s = JSON.parse(w.localStorage.getItem("pdl-decision-workspace"));
+  assert.equal(s.context.segment, "");
+  assert.equal(s.ideas[0].ratings.demand, null);
+  assert.equal(s.capacityKnown, false);
+  click(w, "Decision Brief");
+  assert.match(w.document.querySelector(".report").value, /Smart reminders/);
+  assert.match(w.document.querySelector(".report").value, /not entered/);
+  w.close();
+});
+test("two and three names can start comparisons without optional detail", () => {
+  for (const count of [2, 3]) {
+    const w = app();
+    click(w, "Compare 2–3 Ideas");
+    edit(w, "ideas.0.name", "First");
+    edit(w, "ideas.1.name", "Second");
+    if (count === 3) {
+      click(w, "+ Add optional third idea");
+      edit(w, "ideas.2.name", "Third");
+    }
+    click(w, "Start Evaluating");
+    const s = JSON.parse(w.localStorage.getItem("pdl-decision-workspace"));
+    assert.equal(s.ideas.length, count);
+    assert.ok(s.ideas.every((i) => i.effort === null));
+    click(w, "Decision Analysis");
+    assert.match(text(w), /Incomplete assessment/);
+    click(w, "Idea comparison");
+    assert.ok(w.document.querySelector("table"));
+    w.close();
+  }
+});
+test("contextual answers update the real workspace while skip leaves scores unknown", () => {
+  const w = app();
+  click(w, "Evaluate One Idea");
+  edit(w, "ideas.0.name", "Audit exports");
+  click(w, "Start Evaluating");
+  click(w, "Skip for now");
+  assert.match(text(w), /Skipped for now/);
+  edit(w, "ideas.0.user", "Administrators");
+  edit(w, "context.segment", "Enterprise");
+  edit(w, "ideas.0.evidence", "Two customers requested export at renewal");
+  edit(w, "context.objectives", "Reduce renewal friction");
+  click(w, "Update assessment");
+  assert.match(text(w), /Two customers requested/);
+  assert.doesNotMatch(text(w), /Who is experiencing this problem/);
+  const s = JSON.parse(w.localStorage.getItem("pdl-decision-workspace"));
+  assert.equal(s.context.objectives, "Reduce renewal friction");
+  assert.equal(s.ideas[0].strength, "unknown");
+  assert.equal(w.OpportunityEngine.assess(s.ideas[0], s).score, null);
+  click(w, "Scenario Planning");
+  assert.match(text(w), /Capacity is not entered/);
+  edit(w, "capacity", "8");
+  assert.doesNotMatch(text(w), /Capacity is not entered/);
+  w.close();
+});
+test("five primary destinations retain secondary context and old deep links", () => {
+  for (const route of [
+    "opportunities",
+    "my-opportunities",
+    "compare-and-prioritise",
+    "competitive-intelligence",
+    "decision-challenger",
+    "decision-assessment",
+    "decision-brief",
+    "product-context",
+  ]) {
+    const w = app(undefined, "https://example.test/dist/#" + route);
+    assert.equal(w.document.querySelectorAll("#nav button").length, 5);
+    assert.ok(w.document.querySelector("#view h1"));
+    assert.ok(w.document.querySelector('[data-go="Product Context"]'));
+    assert.notEqual(
+      w.document.querySelector("#view h1").textContent,
+      "One idea or three. Is it worth building?",
+    );
+    w.close();
+  }
+});
+test("opportunity details are collapsed and existing stored fields are preserved", () => {
+  const E = require("../dist/engine.js"),
+    s = E.sample();
+  s.ideas[2].name = "";
+  s.ideas[2].problem = "";
+  s.ideas[2].evidence = "";
+  s.ideas[2].solution = "Preserve this detailed draft";
+  const w = app(JSON.stringify(s));
+  click(w, "My Opportunities");
+  assert.ok(
+    [...w.document.querySelectorAll("#view details")].every((d) => !d.open),
+  );
+  assert.equal(
+    w.document.querySelector('[data-path="ideas.2.solution"]').value,
+    "Preserve this detailed draft",
+  );
+  click(w, "Overview");
+  click(w, "Compare 2–3 Ideas");
+  click(w, "Start Evaluating");
+  const saved = JSON.parse(w.localStorage.getItem("pdl-decision-workspace"));
+  assert.equal(saved.ideas.length, 3);
+  assert.equal(saved.ideas[2].solution, "Preserve this detailed draft");
+  assert.equal(saved.context.name, s.context.name);
+  w.close();
+});
+
+test("all optional questions can be skipped and partial analysis and brief remain accessible", () => {
+  const w = app();
+  click(w, "Evaluate One Idea");
+  edit(w, "ideas.0.name", "A new idea");
+  click(w, "Start Evaluating");
+  for (const q of ["demand", "competition", "strategy"])
+    w.document.querySelector(`[data-skip-question="idea-1:${q}"]`).click();
+  click(w, "Skip for now — open analysis");
+  assert.match(text(w), /Incomplete assessment/);
+  click(w, "Scenario Planning");
+  assert.match(text(w), /Capacity is not entered/);
+  click(w, "Decision Brief");
+  assert.match(w.document.querySelector(".report").value, /Incomplete/);
+  assert.ok(w.document.querySelector("#download"));
+  const s = JSON.parse(w.localStorage.getItem("pdl-decision-workspace"));
+  assert.ok(Object.values(s.context).every((v) => v === ""));
+  assert.equal(w.OpportunityEngine.assess(s.ideas[0], s).score, null);
   w.close();
 });
