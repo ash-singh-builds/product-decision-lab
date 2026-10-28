@@ -16,6 +16,7 @@ The integrated journey is **Understand → Evaluate → Challenge → Compare �
 
 - Evaluate one opportunity or compare two or three; start with an illustrative Northstar Cloud scenario.
 - Edit product context, business objectives, strategic priorities, customer problems and opportunity definitions.
+- Product Context groups essential inputs above collapsed optional details. Standard dropdowns and multi-select segments/priorities support custom entries. Existing free-text context is preserved verbatim during migration; selections save locally and feed the same assessments and Markdown reports without generating ratings.
 - Separate evidence, customer signals, assumptions, risks and unknowns. Missing inputs remain unknown.
 - Maintain a competitive capability matrix with positioning, segment relevance, source notes, dates and user-attested verification status.
 - Assess potential table stakes, parity, differentiation, emerging needs and strategic enablement using explicit contextual rules.
