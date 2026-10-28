@@ -3,10 +3,10 @@ const assert = require("node:assert/strict");
 const { JSDOM } = require("jsdom");
 const fs = require("node:fs");
 const path = require("node:path");
-function app(saved) {
+function app(saved, url = "https://example.test/v2/", demo) {
   const html = fs.readFileSync("dist/index.html", "utf8");
   const dom = new JSDOM(html, {
-    url: "https://example.test/v2/",
+    url,
     runScripts: "outside-only",
   });
   const w = dom.window;
@@ -19,6 +19,7 @@ function app(saved) {
   };
   if (saved !== undefined)
     w.localStorage.setItem("pdl-decision-workspace", saved);
+  if (demo) w.localStorage.setItem("pdl-guided-demo", demo);
   for (const f of [
     "data.js",
     "context-fields.js",
@@ -26,6 +27,7 @@ function app(saved) {
     "challenger.js",
     "report.js",
     "engine.js",
+    "guided-demo.js",
     "app.js",
   ])
     w.eval(fs.readFileSync(path.join("dist", f), "utf8"));
@@ -408,5 +410,113 @@ test("custom priority draft survives another selection; reset clears selections"
     "",
   );
   assert.equal(w.document.querySelector("#additional-context").open, false);
+  w.close();
+});
+
+test("guided demo launches in one click, navigates real views and exports the full report", () => {
+  const w = app();
+  click(w, "Explore Guided Demo");
+  assert.equal(w.document.querySelector("#confirm").open, false);
+  assert.match(text(w), /Opportunity Overview/);
+  assert.match(text(w), /10 engineering points/);
+  assert.equal(w.document.querySelectorAll(".decision").length, 3);
+  click(w, "Next: Competitive Positioning →");
+  assert.ok(w.document.querySelector('[data-path="competitors.0.name"]'));
+  click(w, "Next: Decision Challenger →");
+  assert.ok(w.document.querySelector("[data-review]"));
+  click(w, "← Previous");
+  assert.match(text(w), /Competitive Positioning/);
+  w.document.querySelector('[data-demo-step="4"]').click();
+  assert.match(text(w), /Critical assumption/);
+  click(w, "Open full Opportunity Assessment →");
+  assert.match(w.document.querySelector(".report").value, /Audit Logging/);
+  assert.ok(w.document.querySelector("#download"));
+  w.close();
+});
+test("guided constraints and explicit strategy assumptions update real portfolio and recommendations", () => {
+  const w = app(undefined, "https://example.test/dist/?demo=guided&step=3");
+  assert.match(text(w), /Your selection fits the capacity limit/);
+  let s = () => JSON.parse(w.localStorage.getItem("pdl-guided-demo"));
+  click(w, "Reduce capacity to 6 points");
+  assert.match(text(w), /4 points over capacity/);
+  assert.equal(w.OpportunityEngine.portfolio(s()).effort, 6);
+  click(w, "Restore 10 points");
+  click(w, "Differentiation");
+  assert.deepEqual(Array.from(w.OpportunityEngine.portfolio(s()).ids), [
+    "insights",
+  ]);
+  assert.match(text(w), /no immediate build is justified/);
+  assert.equal(
+    w.OpportunityEngine.assess(s().ideas[1], s()).action,
+    "Validate First",
+  );
+  click(w, "Enterprise Readiness");
+  assert.match(text(w), /Build Audit Logging/);
+  w.close();
+});
+test("direct demo refresh preserves changes and exiting restores user data without writing it", () => {
+  const E = require("../dist/engine.js"),
+    personal = E.blank();
+  personal.context.name = "My real product";
+  const raw = JSON.stringify(personal);
+  let w = app(raw, "https://example.test/dist/?demo=guided&step=3");
+  click(w, "Reduce capacity to 6 points");
+  const demo = w.localStorage.getItem("pdl-guided-demo");
+  assert.equal(w.localStorage.getItem("pdl-decision-workspace"), raw);
+  w.close();
+  w = app(raw, "https://example.test/dist/?demo=guided&step=3", demo);
+  assert.match(text(w), /6 engineering points/);
+  click(w, "Exit Demo");
+  assert.equal(w.localStorage.getItem("pdl-decision-workspace"), raw);
+  click(w, "Start Your Own Assessment");
+  assert.equal(
+    w.document.querySelector('[data-path="context.name"]').value,
+    "My real product",
+  );
+  w.close();
+});
+test("guided restart and clear leave personal workspace intact and own assessment remains editable", () => {
+  const E = require("../dist/engine.js"),
+    s = E.blank();
+  s.context.name = "Personal workspace";
+  const raw = JSON.stringify(s),
+    w = app(raw);
+  click(w, "Explore Guided Demo");
+  w.document.querySelector('[data-demo-step="3"]').click();
+  click(w, "Reduce capacity to 6 points");
+  click(w, "Restart Demo");
+  assert.match(text(w), /10 engineering points/);
+  assert.equal(w.localStorage.getItem("pdl-decision-workspace"), raw);
+  click(w, "Reset workspace");
+  assert.match(text(w), /Opportunity Overview/);
+  click(w, "Clear workspace data");
+  assert.equal(w.localStorage.getItem("pdl-decision-workspace"), raw);
+  click(w, "Start Your Own Assessment");
+  assert.equal(
+    w.document.querySelector('[data-path="context.name"]').value,
+    "Personal workspace",
+  );
+  assert.equal(w.location.search, "");
+  w.close();
+});
+
+test("guided share link is clean and malformed saved demo falls back safely", async () => {
+  const w = app(
+    undefined,
+    "https://example.test/dist/?demo=guided&step=not-a-number",
+    "{bad json",
+  );
+  assert.match(text(w), /Opportunity Overview/);
+  let copied = "";
+  Object.defineProperty(w.navigator, "clipboard", {
+    value: {
+      writeText: async (text) => {
+        copied = text;
+      },
+    },
+  });
+  await w.document.querySelector("[data-demo-link]").onclick();
+  assert.equal(copied, "https://example.test/dist/?demo=guided");
+  assert.match(w.document.querySelector("#status").textContent, /copied/);
   w.close();
 });
