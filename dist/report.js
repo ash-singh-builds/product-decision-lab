@@ -33,6 +33,23 @@
       ...E.insights(s).map((x) => `- ${x.title}: ${x.text}`),
       "",
     ];
+    if (s.guidedDemo) {
+      const G =
+          typeof module !== "undefined"
+            ? require("./guided-demo.js")
+            : root.GuidedDemo,
+        c = G.conclusion(s, E);
+      out.splice(
+        4,
+        0,
+        "### Guided investment conclusion",
+        ...Object.entries(c).map(
+          ([k, v]) =>
+            `${{ action: "Most defensible action", evidence: "Supporting evidence", tradeoff: "Main trade-off", assumption: "Critical assumption", change: "What would change the recommendation", next: "Recommended validation" }[k]}: ${v}`,
+        ),
+        "",
+      );
+    }
     for (const i of s.ideas) {
       const a = r.assessments.find((x) => x.id === i.id);
       out.push(
