@@ -14,6 +14,10 @@
     typeof module !== "undefined"
       ? require("./report.js")
       : root.DecisionReport;
+  const F =
+    typeof module !== "undefined"
+      ? require("./context-fields.js")
+      : root.ContextFields;
   const { criteria, blankIdea, blank, sample } = D;
   const { competition } = C;
   function restore(saved) {
@@ -21,6 +25,7 @@
       return saved;
     const s = JSON.parse(JSON.stringify(saved));
     s.context = { ...blank().context, ...s.context };
+    s.contextUI = F.migrate(s.context, s.contextUI);
     s.ideas = s.ideas.map((i) => ({
       ...blankIdea(i.id),
       ...i,

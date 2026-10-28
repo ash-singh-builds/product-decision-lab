@@ -111,29 +111,29 @@ function provenance() {
 function overview() {
   return `<div class="hero"><span class="eyebrow">PRODUCT DECISION LAB</span><h1>One idea or three.<br><em>Is it worth building?</em></h1><p class="proposition">From product opportunities to confident investment decisions.</p><p class="lead">Evaluate opportunities, understand competitive positioning and navigate product investment decisions with clarity.</p><div class="actions"><button class="primary" data-start="single">Evaluate an Opportunity</button><button data-start="compare">Compare Opportunities</button></div><button class="text-action" data-sample>Explore an Example →</button></div><div class="workflow"><span>Customer Context</span><b>→</b><span>Market Intelligence</span><b>→</b><span>Opportunity Assessment</span><b>→</b><span>Investment Decision</span></div><div class="grid"><div class="card"><span class="eyebrow">OPPORTUNITY INTELLIGENCE</span><h2 style="margin-top:16px">Understand why an investment matters.</h2><p>Connect customer problems, evidence and competitive expectations. Challenge the assumptions before committing.</p><button data-go="Opportunities">Define an opportunity →</button></div><div class="card"><span class="eyebrow">INVESTMENT & PRIORITISATION</span><h2 style="margin-top:16px">Make the trade-offs visible.</h2><p>Compare attractiveness, delivery efficiency and feasible portfolios. Keep the final decision in your hands.</p><button data-go="Compare & Prioritise">Explore investment choices →</button></div></div><div class="card sample-banner"><div><h2>Northstar Cloud · An enterprise investment decision</h2><p>SSO, insights or audit logging? Explore a complete illustrative scenario.</p></div><button data-sample>Explore an Example ↗</button></div>${provenance()}<div class="card"><div class="section-head"><div><h2>Your decision workspace</h2><p>${esc(state.context.name || "Start with your product context")} · ${state.ideas.length} opportunity(s) · ${state.competitors.length} competitor profiles</p></div><button data-go="Product Context">Edit context</button></div><p class="muted">Better product decisions start with better questions.</p></div>`;
 }
+const contextLabels = {
+  market: "Industry / Market",
+  geography: "Geographic Market",
+  businessModel: "Business Model",
+  horizon: "Decision Horizon",
+};
+let additionalContextOpen = false;
+const contextDrafts = { segment: "", priorities: "" };
+function contextDropdown(key) {
+  const value = state.context[key],
+    custom =
+      (state.contextUI?.customFields || []).includes(key) ||
+      (value && !ContextFields.catalog[key].includes(value));
+  return `<div class="context-control"><label class="field">${contextLabels[key]}<select data-context-dropdown="${key}"><option value="">Not specified</option>${ContextFields.catalog[key].map((v) => `<option value="${esc(v)}" ${!custom && value === v ? "selected" : ""}>${esc(v)}</option>`).join("")}<option value="__custom__" ${custom ? "selected" : ""}>Other / Custom</option></select></label>${custom ? field("Custom " + contextLabels[key], `context.${key}`, value, { hint: "Your existing wording is retained. Enter the value that fits your product." }) : ""}</div>`;
+}
+function contextMulti(key, label) {
+  const values = ContextFields.selections(state, key),
+    suggestions = ContextFields.catalog[key],
+    custom = values.filter((v) => !suggestions.includes(v));
+  return `<fieldset class="context-multi"><legend>${label}</legend><p class="form-hint">Select all that apply${key === "priorities" ? "; add your own priorities below" : ". Use Other for a custom segment"}.</p><div class="selection-options">${suggestions.map((v) => `<label><input type="checkbox" data-context-multi="${key}" value="${esc(v)}" ${values.includes(v) ? "checked" : ""}>${esc(v)}</label>`).join("")}</div>${custom.length ? `<div class="selected-custom">${custom.map((v, n) => `<span>${esc(v)}<button type="button" data-remove-context="${key}" data-value-index="${values.indexOf(v)}" aria-label="Remove ${esc(v)}">×</button></span>`).join("")}</div>` : ""}<div class="custom-entry"><label class="field">${key === "priorities" ? "Custom priority" : "Custom customer segment"}<input type="text" maxlength="1000" data-context-custom="${key}" value="${esc(contextDrafts[key])}" placeholder="${key === "priorities" ? "e.g. Reduce onboarding friction" : "e.g. Early-stage founders"}"></label><button type="button" data-add-context="${key}">Add ${key === "priorities" ? "priority" : "segment"}</button></div><p class="form-hint" data-context-selection="${key}">${values.length ? esc(values.join(" · ")) : "No selections yet"}</p></fieldset>`;
+}
 function context() {
-  return `<h1>Start with the context.</h1><p class="lead">The same feature can be essential for one segment and irrelevant for another. Enter your context, then rate each idea's fit against these objectives.</p><div class="card grid">${[
-    ["name", "Product name"],
-    ["market", "Industry / market"],
-    ["segment", "Target customer segment"],
-    ["geography", "Geographic market"],
-    ["description", "Product description"],
-    ["problem", "Primary customer problem"],
-    ["objectives", "Business objectives"],
-    ["priorities", "Strategic priorities"],
-    ["businessModel", "Business model (optional)"],
-    ["horizon", "Decision horizon (optional)"],
-  ]
-    .map(([k, l]) =>
-      field(l, "context." + k, state.context[k], {
-        type: ["description", "problem", "objectives", "priorities"].includes(k)
-          ? "textarea"
-          : "text",
-      }),
-    )
-    .join(
-      "",
-    )}</div><button class="primary" data-go="Opportunities">Continue to ideas →</button>`;
+  return `<h1>Start with the context.</h1><p class="lead">Define who you serve and what matters. These selections guide the discussion; opportunity scores still require your explicit ratings.</p><section class="card"><h2>Essential Context</h2><p>Start here. Add further detail only where it helps the decision.</p><div class="grid">${field("Product Name", "context.name", state.context.name)}${contextDropdown("market")}${field("Product Description", "context.description", state.context.description, { type: "textarea" })}${field("Primary Customer Problem", "context.problem", state.context.problem, { type: "textarea" })}${contextMulti("segment", "Target Customer Segment")}${field("Business Objectives", "context.objectives", state.context.objectives, { type: "textarea" })}<div class="context-wide">${contextMulti("priorities", "Strategic Priorities")}</div></div></section><details id="additional-context" class="card" ${additionalContextOpen ? "open" : ""}><summary>Additional Context <span class="muted">Optional</span></summary><p>Useful for market scope and investment planning. Existing values are retained here.</p><div class="grid">${contextDropdown("geography")}${contextDropdown("businessModel")}${contextDropdown("horizon")}</div></details><button class="primary" data-go="Opportunities">Continue to ideas →</button>`;
 }
 function ideas() {
   return `<div class="section-head"><div><h1>Define the opportunities.</h1><p>Start with what you know. Blank ratings remain unknown.</p></div><button id="add" ${state.ideas.length >= 3 || state.mode === "single" ? "disabled" : ""}>+ Add idea</button></div>${state.mode === "single" ? '<div class="notice">Evaluating one opportunity. Choose Compare Opportunities on Overview to explore more investments.</div>' : ""}${state.ideas
@@ -325,6 +325,8 @@ function reportView() {
   return `<div class="section-head"><div><h1>Decision Assessment</h1><p class="lead">A clear record of the investment rationale, evidence gaps and your final judgment.</p></div><div class="actions"><button id="copy" class="primary">Copy Markdown</button><button id="download">Download .md ↓</button></div></div><div class="card report-document">${reportPreview(E.report(state))}</div><details class="card"><summary>View Markdown source</summary><label class="field">Product Opportunity Assessment<textarea class="report" readonly>${esc(E.report(state))}</textarea></label></details><button data-go="Decision Challenger">Review final PM decision</button>`;
 }
 function render() {
+  if (page === "Product Context" && $("#additional-context"))
+    additionalContextOpen = $("#additional-context").open;
   const errors = E.validate(state);
   if (errors.length) {
     $("#view").innerHTML =
@@ -358,6 +360,101 @@ function setPath(path, value) {
   target[parts.at(-1)] = value;
 }
 function bind() {
+  const details = $("#additional-context");
+  if (details)
+    details.ontoggle = () => {
+      additionalContextOpen = details.open;
+    };
+  document.querySelectorAll("[data-context-dropdown]").forEach(
+    (el) =>
+      (el.onchange = () => {
+        const key = el.dataset.contextDropdown;
+        state.contextUI = ContextFields.migrate(state.context, state.contextUI);
+        state.contextUI.customFields = state.contextUI.customFields.filter(
+          (k) => k !== key,
+        );
+        if (el.value === "__custom__") state.contextUI.customFields.push(key);
+        else state.context[key] = el.value;
+        save();
+        render();
+        document.querySelector(`[data-context-dropdown="${key}"]`)?.focus();
+      }),
+  );
+  document.querySelectorAll("[data-context-multi]").forEach(
+    (el) =>
+      (el.onchange = () => {
+        const key = el.dataset.contextMulti,
+          values = ContextFields.selections(state, key);
+        try {
+          ContextFields.setSelections(
+            state,
+            key,
+            el.checked
+              ? [...values, el.value]
+              : values.filter((v) => v !== el.value),
+          );
+          save();
+          render();
+          [...document.querySelectorAll("[data-context-multi]")]
+            .find((x) => x.dataset.contextMulti === key && x.value === el.value)
+            ?.focus();
+        } catch (e) {
+          $("#status").textContent = e.message;
+          el.checked = !el.checked;
+        }
+      }),
+  );
+  document.querySelectorAll("[data-add-context]").forEach(
+    (button) =>
+      (button.onclick = () => {
+        const key = button.dataset.addContext,
+          input = document.querySelector(`[data-context-custom="${key}"]`),
+          value = input.value.trim();
+        if (!value) {
+          $("#status").textContent = "Enter a custom value before adding it.";
+          input.focus();
+          return;
+        }
+        try {
+          ContextFields.setSelections(state, key, [
+            ...ContextFields.selections(state, key),
+            value,
+          ]);
+          contextDrafts[key] = "";
+          save();
+          render();
+          document.querySelector(`[data-context-custom="${key}"]`)?.focus();
+        } catch (e) {
+          $("#status").textContent = e.message;
+        }
+      }),
+  );
+  document.querySelectorAll("[data-context-custom]").forEach((input) => {
+    input.oninput = () => {
+      contextDrafts[input.dataset.contextCustom] = input.value;
+    };
+    input.onkeydown = (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        document
+          .querySelector(`[data-add-context="${input.dataset.contextCustom}"]`)
+          .click();
+      }
+    };
+  });
+  document.querySelectorAll("[data-remove-context]").forEach(
+    (button) =>
+      (button.onclick = () => {
+        const key = button.dataset.removeContext,
+          values = ContextFields.selections(state, key);
+        values.splice(Number(button.dataset.valueIndex), 1);
+        ContextFields.setSelections(state, key, values);
+        save();
+        render();
+        document.querySelector(`[data-context-custom="${key}"]`)?.focus();
+      }),
+  );
+
   document.querySelectorAll("[data-review]").forEach(
     (el) =>
       (el.onchange = () => {
@@ -427,6 +524,9 @@ function bind() {
         if (b.dataset.start === "single" && state.ideas.length > 1) {
           confirmReplace("Start a fresh single-idea workspace?", () => {
             state = E.blank();
+            additionalContextOpen = false;
+            contextDrafts.segment = "";
+            contextDrafts.priorities = "";
             save();
             go("Product Context");
           });
@@ -573,6 +673,9 @@ function confirmReplace(title, action) {
 function loadSample() {
   confirmReplace("Explore the Northstar Cloud example?", () => {
     state = E.sample();
+    additionalContextOpen = false;
+    contextDrafts.segment = "";
+    contextDrafts.priorities = "";
     save();
     go("Compare & Prioritise");
   });
@@ -582,12 +685,18 @@ $("#sample").onclick = loadSample;
 $("#reset").onclick = () =>
   confirmReplace("Reset to a fresh workspace?", () => {
     state = E.blank();
+    additionalContextOpen = false;
+    contextDrafts.segment = "";
+    contextDrafts.priorities = "";
     save();
     go("Overview");
   });
 $("#clear").onclick = () =>
   confirmReplace("Clear all saved workspace data?", () => {
     state = E.blank();
+    additionalContextOpen = false;
+    contextDrafts.segment = "";
+    contextDrafts.priorities = "";
     try {
       localStorage.removeItem(KEY);
       localStorage.removeItem("pdl-opportunities-v2");
