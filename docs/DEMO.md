@@ -1,15 +1,15 @@
-# Product Decision Lab — 90-second walkthrough
+# Product Decision Lab — guided 90-second walkthrough
 
-Record the real application. Do not invent users, studies or outcomes.
+Open `dist/?demo=guided` (or the deployed equivalent). All customer signals and competitor profiles are fictional. Your personal assessment stays separate.
 
-| Time | Action | Narration |
+| Time | Stage and action | Decision story |
 | --- | --- | --- |
-| 0–10s | Overview; show both entry points | “One idea or three—is it worth building? Product Decision Lab connects opportunities with investment decisions.” |
-| 10–20s | Explore an Example, then Product Context | “Northstar Cloud is balancing enterprise readiness, retention and differentiation. This is an illustrative scenario.” |
-| 20–33s | Opportunities and Competitive Intelligence | “SSO, insights and audit logging address different needs. The capability matrix separates known entries from unknowns and shows the supporting assumptions.” |
-| 33–48s | Decision Challenger | “Before committing, I can question customer necessity, competitive interpretation and delivery risk, record a response and mark a challenge reviewed.” |
-| 48–62s | Compare & Prioritise; adjust a criterion weight | “Attractiveness and delivery efficiency answer different questions. Strategic weights are explicit, and a high score does not bypass evidence gates.” |
-| 62–77s | Scenario Planning; reduce capacity to 8 | “A capacity cut changes what fits. I can compare a feasible portfolio, adjust estimates and save the scenario.” |
-| 77–90s | Record final PM judgment; Decision Assessment and download | “The final assessment captures the rationale, uncertainty and next validation steps. Better product decisions start with better questions.” |
+| 0–18s | Opportunity Overview | Northstar Cloud serves mid-market and enterprise customers. SSO costs 6 points, insights 9 and audit logging 4. Capacity is 10. |
+| 18–33s | Next: Competitive Positioning | Inspect the actual editable matrix. SSO and audit trails have enterprise parity signals; insights may differentiate. Customer necessity is a separate judgment. |
+| 33–48s | Next: Decision Challenger | Examine procurement assumptions, governance scope and the lack of repeat-use evidence for insights. Review or respond using the real controls. |
+| 48–72s | Next: Investment Trade-offs | Reduce capacity to 6: the original 10-point selection no longer fits. Restore 10, then choose Differentiation: explicit fit/value assumptions change the feasible alternative, but insights still requires validation. |
+| 72–90s | Next: Decision Assessment | Explain the current action, evidence, trade-off, critical assumption and validation step. Open the full assessment, copy or download Markdown. |
 
-No loading theatre, live model claims or live research claims. Recommendations come from supplied inputs and transparent rules. The PM owns the final decision.
+Previous, numbered stages and workspace navigation allow free exploration. Restart Demo restores the initial scenario; Exit Demo restores personal work. Copy Demo Link shares a clean entry URL. Refresh retains demo changes and the current step. There is no signup, artificial processing or external service.
+
+For GitHub Pages, continue publishing the repository root and its `dist/` application. The root redirect preserves query parameters and fragments. After an approved merge, verify the deployed `dist/?demo=guided` route, refresh, five stages, both strategy presets, 6/10-point controls, export and personal-data restoration. Never claim deployment verification from localhost alone.
