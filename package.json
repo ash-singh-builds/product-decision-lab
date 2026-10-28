@@ -1,12 +1,11 @@
 {
   "name": "product-decision-lab",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "python3 -m http.server 4173 --directory dist",
     "test": "node --test tests/*.test.cjs",
-    "check": "node scripts/check.cjs",
-    "dev:v2": "python3 -m http.server 4173 --directory dist"
+    "check": "node scripts/check.cjs"
   },
   "devDependencies": {
     "jsdom": "^29.1.1"
