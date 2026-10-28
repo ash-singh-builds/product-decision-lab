@@ -1116,3 +1116,82 @@ details.card[open] > summary {
     font-size: 12px;
   }
 }
+.entry-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 30px 0;
+}
+.entry-grid button {
+  text-align: left;
+  font-size: 16px;
+  padding: 24px;
+  line-height: 1.5;
+}
+.entry-grid small {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  margin-top: 8px;
+  opacity: 0.85;
+}
+.analysis-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0 0 28px;
+}
+.analysis-tabs [aria-current="page"] {
+  background: #eaf0fa;
+  border-color: #3e58a8;
+  color: #253f80;
+}
+#secondary-nav {
+  border-top: 1px solid #e4e8ef;
+  margin-top: 20px;
+  padding-top: 12px;
+}
+#secondary-nav button {
+  font-size: 11px;
+}
+.next-question {
+  border-top: 1px solid #e4e8ef;
+  padding: 18px 0;
+}
+.next-question h3 {
+  font-size: 15px;
+}
+.next-question details {
+  margin: 12px 0;
+}
+.next-question .actions {
+  margin-top: 12px;
+}
+#quick-error {
+  color: #a33535;
+}
+.card dt {
+  font-weight: 600;
+  margin-top: 12px;
+}
+.card dd {
+  margin: 5px 0 12px;
+  color: #59647d;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 720px) {
+  .entry-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .entry-grid button {
+    padding: 18px;
+  }
+  .analysis-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .analysis-tabs button {
+    font-size: 11px;
+  }
+}

@@ -33,15 +33,21 @@ Product managers, product leaders and cross-functional stakeholders exploring in
 
 ## Try the journeys
 
-**Explore Guided Demo** is the primary homepage action. The five-stage, approximately 90-second Northstar Cloud walkthrough uses the actual comparison, competitor matrix, challenger, capacity planner and report views. **Start Your Own Assessment** opens the editable product context.
+**Start first. Add context when it matters.** The homepage offers Evaluate One Idea, Compare 2–3 Ideas and Explore Guided Example. Enter one name, or two comparison names with a third optional, and choose Start Evaluating. A one-sentence customer problem is optional. The first Opportunity Overview separates entered facts from unknowns and offers useful questions; it does not manufacture ratings or a completed evaluation.
+
+Answer contextual questions now, skip them, or open the full details. Responses update the same workspace used by the decision engine. Opportunity forms initially show name, customer problem and expected outcome; evidence, strategic ratings, competitive expectations, delivery estimates and dependencies remain in optional disclosures. No existing stored fields are removed. Newly started assessments leave delivery capacity unentered until you choose to consider it.
+
+Five primary sections organise the experience: Overview, My Opportunities, Decision Analysis, Scenario Planning and Decision Brief. Decision Analysis includes opportunity assessment, competitor intelligence, the challenger and idea comparison. Full Product Context and methodology remain secondary destinations. Existing opportunity, comparison, challenger and assessment hash links still work. Every section and Markdown export remains accessible with partial inputs.
+
+The five-stage Northstar Cloud guided example reuses those actual components, with Next, Back, Restart and Exit controls. It remains isolated from personal work. See [progressive onboarding verification](docs/PROGRESSIVE-ONBOARDING.md).
 
 Share [the guided demo](https://ash-singh-builds.github.io/product-decision-lab/dist/?demo=guided) or use Copy Demo Link. The route works on GitHub Pages without server routing; the root redirect preserves queries and fragments. Refresh resumes the demo step and its separately saved state. Restart Demo returns to the initial 10-point scenario. Exit Demo restores the personal assessment. Demo edits use `pdl-guided-demo`; the personal storage keys are never overwritten or cleared by demo actions. Clearing demo data exits to the personal workspace.
 
 At Investment Trade-offs, reduce capacity from 10 to 6, then switch Enterprise Readiness to Differentiation. The latter explicitly changes illustrative strategy-fit ratings and planning values, with the assumptions displayed beside the controls. Customer evidence does not become stronger. A feasible portfolio can include a Validate First or Buy/Partner opportunity and is not an investment endorsement. The executive conclusion and full Markdown assessment retain that distinction. No services, credentials or new deployment configuration are required. This feature branch must be approved before merging; production remains unchanged until then.
 
-1. **Evaluate an Opportunity:** establish the context, enter what is known, review competitive positioning, inspect the assessment, then challenge the assumptions and record a decision.
-2. **Compare Opportunities:** enter two or three ideas, adjust strategic criteria, review differences and uncertainty, then optionally explore delivery scenarios.
-3. **Explore an Example:** Northstar Cloud must balance enterprise SSO, AI-powered insights and audit logging. The inputs include fictional customer feedback and competitor profiles; novelty does not automatically win.
+1. **Evaluate One Idea:** enter a name, inspect the initial result, and add context or evidence when it helps.
+2. **Compare 2–3 Ideas:** enter two names and optionally a third, inspect unknowns, then explore criteria, competition and delivery scenarios.
+3. **Explore Guided Example:** Northstar Cloud must balance enterprise SSO, AI-powered insights and audit logging. The inputs include fictional customer feedback and competitor profiles; novelty does not automatically win.
 
 See the [90-second walkthrough](docs/DEMO.md) and [verification record](docs/VERIFICATION.md).
 
@@ -111,7 +117,7 @@ Requires Node.js 22+ and Python 3. Development dependencies support DOM integrat
 ```sh
 git clone https://github.com/ash-singh-builds/product-decision-lab.git
 cd product-decision-lab
-git switch feature/guided-demo
+git switch feature/progressive-onboarding
 npm ci
 npm test
 npm run check
@@ -128,7 +134,7 @@ Open **http://localhost:4173/** while the server runs. Stopping the server makes
 
 ## Deployment and review status
 
-The implementation is prepared on **`feature/product-decision-lab-complete`**. It is not merged into `main`. The existing [production demo](https://ash-singh-builds.github.io/product-decision-lab/dist/?v=4) remains the published application until an approved release.
+The onboarding update is prepared on **`feature/progressive-onboarding`**, based on the unmerged guided-demo feature (PR #3). Review against `feature/guided-demo` while that PR is pending. The existing [production demo](https://ash-singh-builds.github.io/product-decision-lab/dist/) remains unchanged until explicit merge approval.
 
 After review and explicit merge approval, GitHub Pages can continue serving the repository root and its existing redirect to `dist/`. No backend or hosting migration is needed. Verify asset loading, direct hash links, local storage, examples, responsive layout and Markdown download at the actual published URL before declaring deployment successful.
 
