@@ -95,6 +95,7 @@ let guided = false,
   demoStep = 0,
   personalState = null;
 const DEMO_KEY = "pdl-guided-demo";
+let freshThirdId = null;
 function save() {
   try {
     localStorage.setItem(guided ? DEMO_KEY : KEY, JSON.stringify(state));
@@ -116,7 +117,109 @@ function provenance() {
   return `<div class="notice">${state.sample ? "<strong>Illustrative Northstar Cloud scenario.</strong> Customer feedback, competitor profiles and market assumptions are fictional." : "<strong>User-provided evidence.</strong> Competitive information is unverified unless a source is marked as confirmed by you."} <a href="#methodology">How to interpret this analysis →</a></div>`;
 }
 function overview() {
-  return `<div class="hero"><span class="eyebrow">PRODUCT DECISION LAB</span><h1>One idea or three.<br><em>Is it worth building?</em></h1><p class="proposition">From product opportunities to confident investment decisions.</p><p class="lead">Evaluate opportunities, understand competitive positioning and navigate product investment decisions with clarity.</p><div class="actions"><button class="primary" data-guided-start>Explore Guided Demo</button><button data-own>Start Your Own Assessment</button></div><p class="muted">Experience a preconfigured product investment decision in about 90 seconds, or enter your own product information.</p><div class="actions"><button data-start="single">Evaluate an Opportunity</button><button data-start="compare">Compare Opportunities</button></div><button class="text-action" data-sample>Explore an Example →</button></div><div class="workflow"><span>Customer Context</span><b>→</b><span>Market Intelligence</span><b>→</b><span>Opportunity Assessment</span><b>→</b><span>Investment Decision</span></div><div class="grid"><div class="card"><span class="eyebrow">OPPORTUNITY INTELLIGENCE</span><h2 style="margin-top:16px">Understand why an investment matters.</h2><p>Connect customer problems, evidence and competitive expectations. Challenge the assumptions before committing.</p><button data-go="Opportunities">Define an opportunity →</button></div><div class="card"><span class="eyebrow">INVESTMENT & PRIORITISATION</span><h2 style="margin-top:16px">Make the trade-offs visible.</h2><p>Compare attractiveness, delivery efficiency and feasible portfolios. Keep the final decision in your hands.</p><button data-go="Compare & Prioritise">Explore investment choices →</button></div></div><div class="card sample-banner"><div><h2>Northstar Cloud · An enterprise investment decision</h2><p>SSO, insights or audit logging? Explore a complete illustrative scenario.</p></div><button data-sample>Explore an Example ↗</button></div>${provenance()}<div class="card"><div class="section-head"><div><h2>Your decision workspace</h2><p>${esc(state.context.name || "Start with your product context")} · ${state.ideas.length} opportunity(s) · ${state.competitors.length} competitor profiles</p></div><button data-go="Product Context">Edit context</button></div><p class="muted">Better product decisions start with better questions.</p></div>`;
+  return `<div class="hero"><span class="eyebrow">PRODUCT DECISION LAB</span><h1>One idea or three.<br><em>Is it worth building?</em></h1><p class="lead">Start with an idea. Add context when it matters.</p><div class="entry-grid"><button class="primary" data-quick="single" aria-label="Evaluate One Idea">Evaluate One Idea<small>Start with a name. Explore the decision.</small></button><button data-quick="compare" aria-label="Compare 2–3 Ideas">Compare 2–3 Ideas<small>See what you know and where the gaps are.</small></button><button data-guided-start aria-label="Explore Guided Example">Explore Guided Example<small>A fictional enterprise investment story.</small></button></div></div>${state.ideas.some((i) => i.name) ? `<section class="card"><h2>Continue your assessment</h2><p>${state.ideas.map((i) => esc(i.name || "Untitled opportunity")).join(" · ")}</p><div class="actions"><button class="primary" data-go="Opportunity Overview">Open Opportunity Overview</button><button data-go="Opportunities">Edit opportunities</button></div></section>` : ""}<section class="card"><h2>Start first. Refine later.</h2><p>Explore evidence gaps, competitive expectations and investment trade-offs. You can open every section with incomplete inputs.</p><button data-go="Product Context">Product Context (optional)</button></section>`;
+}
+function quickEntry() {
+  return `<h1>${state.mode === "single" ? "Evaluate One Idea" : "Compare 2–3 Ideas"}</h1><p class="lead">An idea name is enough to begin. Everything else can wait.</p><form id="quick-start" class="card"><div class="grid">${state.ideas.map((i, n) => `<div>${field("Idea " + (n + 1) + " name" + (n === 2 ? " (optional)" : ""), `ideas.${n}.name`, i.name)}${field("Customer problem (optional)", `ideas.${n}.problem`, i.problem)}</div>`).join("")}</div>${state.mode === "compare" && state.ideas.length < 3 ? '<button type="button" data-quick-third>+ Add optional third idea</button>' : ""}<p class="muted">No scores, evidence or product context required to start.</p><button type="submit" class="primary">Start Evaluating</button><p id="quick-error" role="alert"></p></form>`;
+}
+function nextQuestions(i, n) {
+  const prompts = [
+    {
+      key: "demand",
+      show: !i.user || !i.evidence || !state.context.segment,
+      title: "Who is experiencing this problem, and what have you observed?",
+      fields: () =>
+        field("Target user", `ideas.${n}.user`, i.user) +
+        field("Customer segment", "context.segment", state.context.segment) +
+        field("Observed evidence", `ideas.${n}.evidence`, i.evidence, {
+          type: "textarea",
+        }),
+      more: "Opportunities",
+    },
+    {
+      key: "competition",
+      show: i.expectation === "unknown" || !state.competitors.length,
+      title:
+        "Are competitors offering this capability, or are customers explicitly requesting it?",
+      fields: () =>
+        field("Customer signals", `ideas.${n}.signals`, i.signals, {
+          type: "textarea",
+        }) +
+        field("Customer expectation", `ideas.${n}.expectation`, i.expectation, {
+          list: opts.expectation,
+        }),
+      more: "Competitive Intelligence",
+    },
+    {
+      key: "strategy",
+      show: !state.context.objectives,
+      title: "Which business objective would this opportunity support?",
+      fields: () =>
+        field(
+          "Business objective",
+          "context.objectives",
+          state.context.objectives,
+          { type: "textarea" },
+        ),
+      more: "Product Context",
+    },
+  ];
+  return prompts
+    .filter((q) => q.show)
+    .slice(0, 3)
+    .map(
+      (q) =>
+        `<section class="next-question"><h3>${q.title}</h3>${state.skippedQuestions?.includes(i.id + ":" + q.key) ? '<p class="muted">Skipped for now. You can answer whenever useful.</p>' : ""}<details><summary>Answer now</summary><div class="grid">${q.fields()}</div><button data-refresh-overview>Update assessment</button></details><div class="actions"><button data-skip-question="${esc(i.id + ":" + q.key)}">Skip for now</button><button data-go="${q.more}">Add more detail</button></div></section>`,
+    )
+    .join("");
+}
+function opportunityOverview() {
+  const r = E.evaluate(state);
+  return `<div class="section-head"><div><h1>Opportunity Overview</h1><p class="lead">A starting point for the decision—not a completed assessment.</p></div><button data-go="Opportunities">Edit opportunities</button></div><div class="notice">Your inputs remain the source of truth. Unknowns stay unknown; no demand, market facts or ratings are inferred from an idea name.</div>${state.ideas
+    .map((i, n) => {
+      const a = r.assessments[n],
+        known = [
+          ["Idea", i.name],
+          ["Customer problem", i.problem],
+          ["Expected outcome", i.outcome],
+          ["Target user", i.user],
+          ["Evidence", i.evidence],
+          ["Business objective", state.context.objectives],
+        ].filter(([, v]) => v?.trim()),
+        unknown = [...a.gaps];
+      if (!i.outcome) unknown.push("Expected customer outcome");
+      return `<section class="card"><div class="section-head"><h2>${esc(i.name || "Untitled opportunity")}</h2><span class="tag">${a.complete ? "Ratings entered · evidence still matters" : "Initial assessment · incomplete"}</span></div><p><strong>${a.action}</strong> · ${esc(a.reason)}</p><div class="grid"><div><h3>What is known</h3><dl>${known.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("") || "<p>No information entered yet.</p>"}</dl><p class="muted">Entered information; not independently verified.</p></div><div><h3>What is unknown or incomplete</h3><ul>${unknown.map((g) => `<li>${esc(g)}</li>`).join("") || "<li>No rule-detected gaps; this is not proof of completeness.</li>"}</ul><p>${a.score === null ? "No final score. Add explicit ratings when you are ready." : `Attractiveness: ${a.score}/100 from your entered ratings.`}</p></div></div><h3>Questions worth answering next</h3>${nextQuestions(i, n) || "<p>Review the Decision Challenger for the remaining assumptions.</p>"}</section>`;
+    })
+    .join(
+      "",
+    )}<section class="card"><h2>Want to explore delivery constraints?</h2><p>Effort and engineering capacity are optional until you want to compare what fits.</p><div class="actions"><button data-go="Scenario Planning">Answer now</button><button data-go="Assessment">Skip for now — open analysis</button><button data-go="Opportunities">Add more detail</button></div></section><div class="actions"><button class="primary" data-go="Assessment">Open Decision Analysis →</button><button data-go="Decision Assessment">Open Decision Brief →</button></div>`;
+}
+const analysisPages = [
+  "Assessment",
+  "Competitive Intelligence",
+  "Decision Challenger",
+  "Compare & Prioritise",
+];
+function analysisNavigation() {
+  return `<nav class="analysis-tabs" aria-label="Decision Analysis sections">${[
+    ["Assessment", "Opportunity assessment"],
+    ["Competitive Intelligence", "Competitive intelligence"],
+    ["Decision Challenger", "Decision Challenger"],
+    ["Compare & Prioritise", "Idea comparison"],
+  ]
+    .map(
+      ([p, l]) =>
+        `<button data-go="${p}" ${page === p ? 'aria-current="page"' : ""}>${l}</button>`,
+    )
+    .join("")}</nav>`;
+}
+function assessmentView() {
+  const html = comparison(),
+    index = html.indexOf('<div class="card table-wrap">');
+  return (
+    html.slice(0, index) +
+    `<button data-go="Decision Challenger">Challenge the assessment →</button>`
+  );
 }
 function demoRoute() {
   const u = new URL(location.href);
@@ -166,7 +269,7 @@ function demoFrame() {
   return `<section class="card demo-guide" aria-label="Guided demo"><div class="section-head"><span class="eyebrow">GUIDED DEMO · ILLUSTRATIVE DATA · ABOUT 90 SECONDS</span><div class="actions"><button data-demo-restart>Restart Demo</button><button data-demo-link>Copy Demo Link</button><button data-demo-exit>Exit Demo</button></div></div><ol class="demo-progress" aria-label="Demo progress">${GuidedDemo.stages.map((x, n) => `<li><button data-demo-step="${n}" data-step-number="${n + 1}" ${n === demoStep ? 'aria-current="step"' : ""}>${n + 1}. ${x.title}</button></li>`).join("")}</ol><h1>${stage.title}</h1><p class="lead">${stage.text}</p><p><strong>${esc(state.context.name)}</strong> · ${esc(state.context.segment)} · ${state.capacity} engineering points</p><p class="muted">${esc(state.context.objectives)}</p><p class="muted">Your own assessment is preserved. You can also use the workspace navigation to explore freely.</p>${page !== stage.page ? "<button data-demo-resume>Resume this stage</button>" : ""}${demoNavigation()}</section>`;
 }
 function demoNavigation() {
-  return `<div class="card actions demo-navigation"><span>Step ${demoStep + 1} of 5</span>${demoStep ? "<button data-demo-prev>← Previous</button>" : ""}${demoStep < 4 ? `<button class="primary" data-demo-next>Next: ${GuidedDemo.stages[demoStep + 1].title} →</button>` : "<button data-demo-exit>Exit Demo</button>"}</div>`;
+  return `<div class="card actions demo-navigation"><span>Step ${demoStep + 1} of 5</span>${demoStep ? "<button data-demo-prev>← Back</button>" : ""}${demoStep < 4 ? `<button class="primary" data-demo-next>Next: ${GuidedDemo.stages[demoStep + 1].title} →</button>` : "<button data-demo-exit>Exit Demo</button>"}</div>`;
 }
 function demoTradeoffs() {
   return `<section class="card demo-controls"><h2>What happens if capacity drops from 10 to 6 points?</h2><p>Explore a tighter delivery limit, then change what the business values most.</p><div class="actions"><button data-demo-capacity="6" aria-pressed="${state.capacity === 6}">Reduce capacity to 6 points</button><button data-demo-capacity="10" aria-pressed="${state.capacity === 10}">Restore 10 points</button></div><h3>Strategic emphasis</h3><div class="actions"><button data-demo-emphasis="enterprise" aria-pressed="${state.demoEmphasis === "Enterprise Readiness"}">Enterprise Readiness</button><button data-demo-emphasis="differentiation" aria-pressed="${state.demoEmphasis === "Differentiation"}">Differentiation</button></div><p class="muted">Illustrative scenario assumptions: strategic fit carries 50% of weight. Enterprise Readiness sets SSO / Insights / Audit fit to 5 / 2 / 5 and planning values to 9 / 8 / 7; Differentiation uses 2 / 5 / 2 and 6 / 12 / 5. Customer evidence and effort do not change. These are editable judgments, not market facts.</p></section>${demoConclusion(false)}`;
@@ -210,15 +313,24 @@ function context() {
   return `<h1>Start with the context.</h1><p class="lead">Define who you serve and what matters. These selections guide the discussion; opportunity scores still require your explicit ratings.</p><section class="card"><h2>Essential Context</h2><p>Start here. Add further detail only where it helps the decision.</p><div class="grid">${field("Product Name", "context.name", state.context.name)}${contextDropdown("market")}${field("Product Description", "context.description", state.context.description, { type: "textarea" })}${field("Primary Customer Problem", "context.problem", state.context.problem, { type: "textarea" })}${contextMulti("segment", "Target Customer Segment")}${field("Business Objectives", "context.objectives", state.context.objectives, { type: "textarea" })}<div class="context-wide">${contextMulti("priorities", "Strategic Priorities")}</div></div></section><details id="additional-context" class="card" ${additionalContextOpen ? "open" : ""}><summary>Additional Context <span class="muted">Optional</span></summary><p>Useful for market scope and investment planning. Existing values are retained here.</p><div class="grid">${contextDropdown("geography")}${contextDropdown("businessModel")}${contextDropdown("horizon")}</div></details><button class="primary" data-go="Opportunities">Continue to ideas →</button>`;
 }
 function ideas() {
-  return `<div class="section-head"><div><h1>Define the opportunities.</h1><p>Start with what you know. Blank ratings remain unknown.</p></div><button id="add" ${state.ideas.length >= 3 || state.mode === "single" ? "disabled" : ""}>+ Add idea</button></div>${state.mode === "single" ? '<div class="notice">Evaluating one opportunity. Choose Compare Opportunities on Overview to explore more investments.</div>' : ""}${state.ideas
+  return `<div class="section-head"><div><h1>My Opportunities</h1><p>Start with what you know. Blank ratings remain unknown.</p></div><button id="add" ${state.ideas.length >= 3 || state.mode === "single" ? "disabled" : ""}>+ Add idea</button></div>${state.mode === "single" ? '<div class="notice">Evaluating one opportunity. Choose Compare 2–3 Ideas on Overview to explore more investments.</div>' : ""}${state.ideas
     .map(
       (i, n) =>
         `<div class="card"><div class="section-head"><h2>Opportunity ${n + 1} · ${esc(i.name || "Untitled")}</h2><div><button data-duplicate="${n}" ${state.ideas.length >= 3 || state.mode === "single" ? "disabled" : ""}>Duplicate</button> <button data-remove="${n}" ${state.ideas.length === 1 ? "disabled" : ""}>Remove</button></div></div><div class="grid">${[
           ["name", "Opportunity name"],
           ["problem", "Customer problem"],
+          ["outcome", "Expected customer outcome"],
+        ]
+          .map(([k, l]) =>
+            field(l, `ideas.${n}.${k}`, i[k], {
+              type: k === "problem" ? "textarea" : "text",
+            }),
+          )
+          .join(
+            "",
+          )}</div><details><summary>More opportunity detail</summary><div class="grid">${[
           ["solution", "Proposed solution"],
           ["user", "Target user"],
-          ["outcome", "Expected customer outcome"],
           ["business", "Potential business impact"],
           ["strategicRelevance", "Strategic relevance"],
           ["marketRelevance", "Market relevance"],
@@ -232,7 +344,7 @@ function ideas() {
           )
           .join(
             "",
-          )}</div><details open><summary>Evidence, assumptions and unknowns</summary><div class="grid">${field("Supporting evidence", `ideas.${n}.evidence`, i.evidence, { type: "textarea", hint: "Describe observations. Text is treated as data, never as instructions." })}${field("Customer signals", `ideas.${n}.signals`, i.signals, { type: "textarea" })}${field("Evidence provenance", `ideas.${n}.evidenceType`, i.evidenceType, { list: opts.evidenceType })}${field("Evidence strength (your judgment)", `ideas.${n}.strength`, i.strength, { list: opts.strength })}${field("Assumptions", `ideas.${n}.assumptions`, i.assumptions, { type: "textarea" })}${field("Unknowns", `ideas.${n}.unknowns`, i.unknowns, { type: "textarea" })}</div>${check("Customer evidence contains a contradiction", `ideas.${n}.contradiction`, i.contradiction)}${check("The customer problem has been invalidated", `ideas.${n}.rejected`, i.rejected)}</details><details><summary>Ratings, expectations & delivery estimates</summary><p>Manual ratings: 1 = low, 3 = moderate, 5 = high. Feasibility 5 means easier delivery. Scores are not forecasts.</p><div class="grid">${Object.entries(
+          )}</div></details><details><summary>Evidence, assumptions and unknowns</summary><div class="grid">${field("Supporting evidence", `ideas.${n}.evidence`, i.evidence, { type: "textarea", hint: "Describe observations. Text is treated as data, never as instructions." })}${field("Customer signals", `ideas.${n}.signals`, i.signals, { type: "textarea" })}${field("Evidence provenance", `ideas.${n}.evidenceType`, i.evidenceType, { list: opts.evidenceType })}${field("Evidence strength (your judgment)", `ideas.${n}.strength`, i.strength, { list: opts.strength })}${field("Assumptions", `ideas.${n}.assumptions`, i.assumptions, { type: "textarea" })}${field("Unknowns", `ideas.${n}.unknowns`, i.unknowns, { type: "textarea" })}</div>${check("Customer evidence contains a contradiction", `ideas.${n}.contradiction`, i.contradiction)}${check("The customer problem has been invalidated", `ideas.${n}.rejected`, i.rejected)}</details><details><summary>Ratings, expectations & delivery estimates</summary><p>Manual ratings: 1 = low, 3 = moderate, 5 = high. Feasibility 5 means easier delivery. Scores are not forecasts.</p><div class="grid">${Object.entries(
           E.criteria,
         )
           .map(([k, l]) =>
@@ -349,7 +461,7 @@ function scenario() {
     missing = chosen.flatMap((i) =>
       i.dependencies.filter((id) => !state.selected.includes(id)),
     );
-  return `<h1>Scenario Planning</h1><p class="lead">What can you deliver—and what must wait? Adjust capacity or estimates without confusing delivery fit with investment merit.</p><div class="grid"><div class="card"><h2>Shape your investment portfolio</h2>${field("Engineering capacity", "capacity", state.capacity, { type: "number" })}<label class="field">Explore capacity<input aria-label="Capacity slider" type="range" min="0" max="50" value="${Math.min(50, state.capacity)}" data-path="capacity"></label>${state.ideas.map((i, n) => `<div class="scenario-row"><label class="check"><input type="checkbox" data-select="${i.id}" ${state.selected.includes(i.id) ? "checked" : ""}>${esc(i.name || "Untitled opportunity")}</label><div class="grid">${field("Estimated effort", `ideas.${n}.effort`, i.effort, { type: "number" })}${field("Additive planning value", `ideas.${n}.portfolioValue`, i.portfolioValue, { type: "number" })}</div></div>`).join("")}<div class="notice ${unknown || effort > state.capacity || missing.length ? "warning" : ""}"><strong>${unknown ? "Selected effort is unknown" : effort > state.capacity ? `Your selection is ${effort - state.capacity} points over capacity` : "Your selection fits the capacity limit"}</strong><br>${effort} known effort / ${state.capacity} capacity · ${value ?? "unknown"} planning value${missing.length ? "<br>Missing dependencies: " + missing.map((id) => esc(state.ideas.find((i) => i.id === id)?.name || id)).join(", ") : ""}</div><button id="snapshot">Save scenario</button></div><div class="card"><span class="eyebrow">FEASIBLE ALTERNATIVE</span><h2 style="margin-top:16px">Highest additive value within capacity</h2><p>${p.ids.map((id) => esc(state.ideas.find((i) => i.id === id).name || "Untitled")).join(" + ") || "No positive-value feasible portfolio."}</p><div class="metric-pair"><div><strong>${p.value}</strong><small>entered value units</small></div><div><strong>${p.effort} / ${state.capacity}</strong><small>effort / capacity</small></div></div><button id="apply-portfolio" class="primary">Apply portfolio selection</button><p>Only opportunities with known effort and value are eligible. Blocked and invalidated opportunities are excluded; selected dependencies must fit together.</p><div class="notice">Capacity feasibility does not establish customer demand or justify an investment. Review each opportunity recommendation before committing.</div><details><summary>Assumptions behind the optimiser</summary><p>Maximise total additive entered value subject to capacity and dependency constraints. Values assume no overlap or synergy. This is not a sum of value-per-effort ratios or a business forecast.</p></details></div></div><div class="card table-wrap"><h2>Saved portfolio scenarios</h2>${state.snapshots.length ? `<table><thead><tr><th>Selection</th><th>Effort / capacity</th><th>Planning value</th><th>Priorities</th><th>Saved</th></tr></thead><tbody>${state.snapshots.map((x) => `<tr><td>${esc(x.names)}</td><td>${x.effort ?? "Unknown"} / ${x.capacity}</td><td>${x.value ?? "Not captured"}</td><td>${esc(x.priorities || "Not recorded")}</td><td>${esc(x.date)}</td></tr>`).join("")}</tbody></table>` : "<p>Save a scenario, change the constraints, then save another to compare.</p>"}</div><button data-go="Compare & Prioritise">Return to investment priorities →</button>`;
+  return `<h1>Scenario Planning</h1>${state.capacityKnown === false ? '<div class="notice">Capacity is not entered. Set a capacity to explore delivery feasibility; zero is a starting limit, not an estimate.</div>' : ""}<p class="lead">What can you deliver—and what must wait? Adjust capacity or estimates without confusing delivery fit with investment merit.</p><div class="grid"><div class="card"><h2>Shape your investment portfolio</h2>${field("Engineering capacity", "capacity", state.capacity, { type: "number" })}<label class="field">Explore capacity<input aria-label="Capacity slider" type="range" min="0" max="50" value="${Math.min(50, state.capacity)}" data-path="capacity"></label>${state.ideas.map((i, n) => `<div class="scenario-row"><label class="check"><input type="checkbox" data-select="${i.id}" ${state.selected.includes(i.id) ? "checked" : ""}>${esc(i.name || "Untitled opportunity")}</label><div class="grid">${field("Estimated effort", `ideas.${n}.effort`, i.effort, { type: "number" })}${field("Additive planning value", `ideas.${n}.portfolioValue`, i.portfolioValue, { type: "number" })}</div></div>`).join("")}<div class="notice ${unknown || effort > state.capacity || missing.length ? "warning" : ""}"><strong>${state.capacityKnown === false ? "Capacity is not entered" : unknown ? "Selected effort is unknown" : effort > state.capacity ? `Your selection is ${effort - state.capacity} points over capacity` : "Your selection fits the capacity limit"}</strong><br>${effort} known effort / ${state.capacityKnown === false ? "unknown" : state.capacity} capacity · ${value ?? "unknown"} planning value${missing.length ? "<br>Missing dependencies: " + missing.map((id) => esc(state.ideas.find((i) => i.id === id)?.name || id)).join(", ") : ""}</div><button id="snapshot">Save scenario</button></div><div class="card"><span class="eyebrow">FEASIBLE ALTERNATIVE</span><h2 style="margin-top:16px">Highest additive value within capacity</h2><p>${state.capacityKnown === false ? "Enter a capacity limit to calculate feasible alternatives." : p.ids.map((id) => esc(state.ideas.find((i) => i.id === id).name || "Untitled")).join(" + ") || "No positive-value feasible portfolio."}</p><div class="metric-pair"><div><strong>${state.capacityKnown === false ? "—" : p.value}</strong><small>entered value units</small></div><div><strong>${state.capacityKnown === false ? "—" : p.effort} / ${state.capacityKnown === false ? "Unknown" : state.capacity}</strong><small>effort / capacity</small></div></div><button id="apply-portfolio" class="primary" ${state.capacityKnown === false ? "disabled" : ""}>Apply portfolio selection</button><p>Only opportunities with known effort and value are eligible. Blocked and invalidated opportunities are excluded; selected dependencies must fit together.</p><div class="notice">Capacity feasibility does not establish customer demand or justify an investment. Review each opportunity recommendation before committing.</div><details><summary>Assumptions behind the optimiser</summary><p>Maximise total additive entered value subject to capacity and dependency constraints. Values assume no overlap or synergy. This is not a sum of value-per-effort ratios or a business forecast.</p></details></div></div><div class="card table-wrap"><h2>Saved portfolio scenarios</h2>${state.snapshots.length ? `<table><thead><tr><th>Selection</th><th>Effort / capacity</th><th>Planning value</th><th>Priorities</th><th>Saved</th></tr></thead><tbody>${state.snapshots.map((x) => `<tr><td>${esc(x.names)}</td><td>${x.effort ?? "Unknown"} / ${x.capacity}</td><td>${x.value ?? "Not captured"}</td><td>${esc(x.priorities || "Not recorded")}</td><td>${esc(x.date)}</td></tr>`).join("")}</tbody></table>` : "<p>Save a scenario, change the constraints, then save another to compare.</p>"}</div><button data-go="Compare & Prioritise">Return to investment priorities →</button>`;
 }
 function methodology() {
   return `<h1>Methodology & interpretation</h1><p class="lead">Decision-support analysis derived from your inputs and transparent rules. No generative model or external research is used.</p><div class="card"><h2>Three distinct questions</h2><p><strong>Opportunity attractiveness:</strong> weighted mean of ratings ÷ 5 × 100. Criteria weights normalise automatically. Missing ratings produce no final score.</p><p><strong>Delivery efficiency:</strong> attractiveness × planning confidence ÷ effort. Planning confidence assumptions are strong .8, weak .4, contradictory 0; unknown evidence remains unknown. These are explicit illustrative multipliers, not calibrated probabilities. Zero or unknown effort has no efficiency score.</p><p><strong>Portfolio feasibility:</strong> highest sum of entered additive planning value that fits capacity and supported dependencies. It does not maximise efficiency ratios.</p></div><div class="card"><h2>Recommendation gates</h2><p>Invalidated problem → Do Not Pursue. Contradiction or missing required inputs → Validate First. Strong evidence and complete ratings: low problem and strategic fit → Do Not Pursue; blocker or low fit → Defer; required parity with an external alternative and no unique outcome → Buy/Partner. Insufficient competition requires validation. Score ≥70 with problem, strategy and feasibility ratings ≥3 → Build Now; score below45 → Defer; otherwise → Validate First.</p><p>Required inputs: opportunity name, problem, supporting evidence, customer segment, objectives, effort and active criterion ratings. Your ratings are judgments, not independently validated facts.</p></div><div class="card"><h2>Competitive classifications</h2><p>Potential table stakes requires both a declared customer requirement and at least two known relevant competitor entries, with at least half fully offering it. Adoption alone is insufficient. Potential differentiation requires a unique customer outcome and two known entries with none fully offering it. Partial capability is not full parity. Unknown never means absent.</p><p>Absent entries count only for illustrative profiles or user-confirmed sources with notes. Source confirmation is your attestation, not verification by the application. Excluding a profile from the target segment excludes it from classification.</p></div><div class="card"><h2>Evidence & privacy</h2><p>Illustrative scenarios contain fictional feedback and sample market assumptions. User-provided evidence and competitor references remain unverified. No browsing, interviews, adoption studies or measured business outcomes are claimed.</p><p>Workspace data is saved in this browser only. It is not encrypted or synced. Avoid sensitive data on shared devices. You can clear the workspace at any time.</p></div>`;
@@ -396,7 +508,7 @@ function reportPreview(markdown) {
   return out;
 }
 function reportView() {
-  return `<div class="section-head"><div><h1>Decision Assessment</h1><p class="lead">A clear record of the investment rationale, evidence gaps and your final judgment.</p></div><div class="actions"><button id="copy" class="primary">Copy Markdown</button><button id="download">Download .md ↓</button></div></div><div class="card report-document">${reportPreview(E.report(state))}</div><details class="card"><summary>View Markdown source</summary><label class="field">Product Opportunity Assessment<textarea class="report" readonly>${esc(E.report(state))}</textarea></label></details><button data-go="Decision Challenger">Review final PM decision</button>`;
+  return `<div class="section-head"><div><h1>Decision Brief</h1><p class="lead">A clear record of the investment rationale, evidence gaps and your final judgment.</p></div><div class="actions"><button id="copy" class="primary">Copy Markdown</button><button id="download">Download .md ↓</button></div></div><div class="card report-document">${reportPreview(E.report(state))}</div><details class="card"><summary>View Markdown source</summary><label class="field">Product Opportunity Assessment<textarea class="report" readonly>${esc(E.report(state))}</textarea></label></details><button data-go="Decision Challenger">Review final PM decision</button>`;
 }
 function render() {
   if (page === "Product Context" && $("#additional-context"))
@@ -407,15 +519,32 @@ function render() {
       `<div class="notice warning">${esc(errors.join("; "))}</div>`;
     return;
   }
-  $("#nav").innerHTML = tabs
+  const primary = [
+    ["Overview", "Overview"],
+    ["Opportunities", "My Opportunities"],
+    ["Assessment", "Decision Analysis"],
+    ["Scenario Planning", "Scenario Planning"],
+    ["Decision Assessment", "Decision Brief"],
+  ];
+  const active = analysisPages.includes(page)
+    ? "Assessment"
+    : ["Opportunity Overview", "Quick Start"].includes(page)
+      ? "Overview"
+      : page;
+  $("#nav").innerHTML = primary
     .map(
-      (t) =>
-        `<button data-go="${t}" class="${page === t ? "active" : ""}" ${page === t ? 'aria-current="page"' : ""}>${t}</button>`,
+      ([p, label]) =>
+        `<button data-go="${p}" ${active === p ? 'class="active" aria-current="page"' : ""}>${label}</button>`,
     )
     .join("");
+  $("#secondary-nav").innerHTML =
+    '<button data-go="Product Context">Product Context</button><button data-go="Methodology">Methodology</button>';
   $("#status").textContent = message;
   const body = {
     Overview: overview,
+    "Quick Start": quickEntry,
+    "Opportunity Overview": opportunityOverview,
+    Assessment: assessmentView,
     "Product Context": context,
     Opportunities: ideas,
     "Competitive Intelligence": competitors,
@@ -428,6 +557,7 @@ function render() {
   }[page]();
   $("#view").innerHTML =
     (guided ? demoFrame() : "") +
+    (analysisPages.includes(page) ? analysisNavigation() : "") +
     (guided && page === "Scenario Planning" ? demoTradeoffs() : "") +
     body;
   bind();
@@ -439,6 +569,96 @@ function setPath(path, value) {
   target[parts.at(-1)] = value;
 }
 function bind() {
+  document.querySelectorAll("[data-quick]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        const launch = () => {
+          state.mode = b.dataset.quick;
+          if (state.mode === "compare" && state.ideas.length < 2)
+            state.ideas.push(E.blankIdea("idea-2"));
+          save();
+          go("Quick Start");
+        };
+        if (b.dataset.quick === "single" && state.ideas.length > 1) {
+          confirmReplace("Start a fresh one-idea assessment?", () => {
+            state = E.blank();
+            state.capacity = 0;
+            state.capacityKnown = false;
+            launch();
+          });
+        } else {
+          if (!state.ideas.some((i) => i.name) && !state.sample) {
+            state.capacity = 0;
+            state.capacityKnown = false;
+          }
+          launch();
+        }
+      }),
+  );
+  if ($("#quick-start")) {
+    $("#quick-start").onsubmit = (e) => {
+      e.preventDefault();
+      const needed = state.mode === "single" ? 1 : 2;
+      if (state.ideas.slice(0, needed).some((i) => !i.name.trim())) {
+        $("#quick-error").textContent =
+          needed === 1
+            ? "Enter an idea name to begin."
+            : "Enter two idea names to compare.";
+        document
+          .querySelector(
+            '[data-path="ideas.' +
+              state.ideas.findIndex((i) => !i.name.trim()) +
+              '.name"]',
+          )
+          ?.focus();
+        return;
+      }
+      if (
+        state.ideas.length === 3 &&
+        state.ideas[2].id === freshThirdId &&
+        Object.keys(state.ideas[2]).every(
+          (k) =>
+            JSON.stringify(state.ideas[2][k]) ===
+            JSON.stringify(E.blankIdea(state.ideas[2].id)[k]),
+        )
+      )
+        state.ideas.pop();
+      freshThirdId = null;
+      save();
+      go("Opportunity Overview");
+    };
+  }
+  document.querySelectorAll("[data-quick-third]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        freshThirdId = "idea-" + Date.now();
+        state.ideas.push(E.blankIdea(freshThirdId));
+        save();
+        render();
+      }),
+  );
+  document.querySelectorAll("[data-skip-question]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        state.skippedQuestions = [
+          ...new Set([
+            ...(state.skippedQuestions || []),
+            b.dataset.skipQuestion,
+          ]),
+        ];
+        save();
+        render();
+      }),
+  );
+  document.querySelectorAll("[data-refresh-overview]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        save();
+        render();
+        $("#content").focus();
+      }),
+  );
+
   document
     .querySelectorAll("[data-guided-start]")
     .forEach((b) => (b.onclick = () => demoStart()));
@@ -446,7 +666,7 @@ function bind() {
     (b) =>
       (b.onclick = () => {
         if (guided) demoExit();
-        go("Product Context");
+        go("Quick Start");
       }),
   );
   document
@@ -637,10 +857,13 @@ function bind() {
         if (path.includes(".ratings."))
           value = value === "" ? null : Number(value);
         setPath(path, value);
+        if (path === "capacity") state.capacityKnown = true;
         save();
         $("#status").textContent = message;
         if (
           ![
+            "Quick Start",
+            "Opportunity Overview",
             "Product Context",
             "Opportunities",
             "Competitive Intelligence",
@@ -867,12 +1090,32 @@ $("#clear").onclick = () => {
   });
 };
 function pageSlug(name) {
+  const aliases = {
+    Opportunities: "my-opportunities",
+    Assessment: "decision-analysis",
+    "Decision Assessment": "decision-brief",
+  };
+  if (aliases[name]) return aliases[name];
   return name.toLowerCase().replaceAll("&", "and").replaceAll(" ", "-");
 }
 function readRoute() {
   const slug = location.hash.slice(1);
+  const aliases = {
+    "my-opportunities": "Opportunities",
+    opportunities: "Opportunities",
+    "decision-analysis": "Assessment",
+    "decision-brief": "Decision Assessment",
+    "decision-assessment": "Decision Assessment",
+  };
+  if (aliases[slug]) return aliases[slug];
   return (
-    [...tabs, "Methodology"].find((t) => pageSlug(t) === slug) || "Overview"
+    [
+      ...tabs,
+      "Methodology",
+      "Quick Start",
+      "Opportunity Overview",
+      "Assessment",
+    ].find((t) => pageSlug(t) === slug) || "Overview"
   );
 }
 window.addEventListener("hashchange", () => {

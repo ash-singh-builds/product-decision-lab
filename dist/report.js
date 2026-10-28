@@ -118,7 +118,7 @@
     }
     out.push(
       "## Portfolio scenarios",
-      `Capacity: ${s.capacity} points. Highest additive estimated value within capacity: ${p.value}; effort ${p.effort}; opportunities: ${p.ids.map((id) => s.ideas.find((i) => i.id === id)?.name || id).join(", ") || "none"}.`,
+      `Capacity: ${s.capacityKnown === false ? "not entered (zero planning limit until supplied)" : s.capacity + " points"}. Highest additive estimated value within capacity: ${p.value}; effort ${p.effort}; opportunities: ${p.ids.map((id) => s.ideas.find((i) => i.id === id)?.name || id).join(", ") || "none"}.`,
       `Current PM selection: ${s.selected.map((id) => s.ideas.find((i) => i.id === id)?.name || id).join(", ") || "none"}.`,
       `Selection feasibility: ${s.ideas.filter((i) => s.selected.includes(i.id)).some((i) => i.effort === null) ? "Unknown effort" : s.ideas.filter((i) => s.selected.includes(i.id)).reduce((n, i) => n + i.effort, 0) > s.capacity ? "Over capacity" : "Within capacity"}; dependencies ${s.ideas.filter((i) => s.selected.includes(i.id)).some((i) => i.dependencies.some((id) => !s.selected.includes(id))) ? "not satisfied" : "satisfied for entered selection"}.`,
       "The portfolio suggestion is a capacity calculation, not a substitute for the investment assessment. Values assume additivity, no overlap and no synergy.",

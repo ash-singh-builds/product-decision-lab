@@ -22,7 +22,7 @@
       text: "Ten points can cover SSO and audit logging together. Reduce capacity or change strategic emphasis to see what fits—and which opportunities still need validation.",
     },
     {
-      title: "Decision Assessment",
+      title: "Decision Brief",
       page: "Guided Conclusion",
       text: "Turn the current evidence and constraints into an investment discussion. This conclusion updates when you change the scenario; the final decision remains yours.",
     },
