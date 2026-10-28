@@ -2,7 +2,7 @@
 
 28 October 2026. Scope: static decision-support application.
 
-- Automated tests: 34 passed locally.
+- Automated tests: 35 passed locally.
 - Static checks: JavaScript syntax and referenced assets passed.
 - Preserved original calculation regressions against a test-only fixture.
 - Browser checks: homepage, illustrative sample, competitive capability matrix, structured challenger responses, comparison, scenario controls, direct links, local persistence and Markdown report.
